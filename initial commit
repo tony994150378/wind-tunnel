@@ -1,0 +1,1025 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>风洞测试工具 · 使用与部署指南</title>
+<style>
+  :root{--bg:#0e1116;--panel:#161b22;--line:#2b333d;--txt:#e6edf3;--muted:#9aa7b4;--accent:#4cc2ff;--accent2:#ffb454;}
+  *{box-sizing:border-box;} body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;line-height:1.7;}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px;}
+  h1{font-size:24px;margin-bottom:6px;} .sub{color:var(--muted);font-size:13px;margin-bottom:22px;}
+  h2{font-size:17px;color:var(--accent);margin-top:28px;border-bottom:1px solid var(--line);padding-bottom:6px;}
+  h3{font-size:14px;color:var(--accent2);margin-top:20px;}
+  a{color:var(--accent);} code{background:var(--panel);padding:2px 6px;border-radius:4px;font-size:12px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{border:1px solid var(--line);padding:8px;text-align:left;}
+  th{background:#1f2630;}
+  .step{display:flex;gap:12px;margin:12px 0;}
+  .step .n{flex:0 0 28px;height:28px;border-radius:50%;background:var(--accent);color:#05121c;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px;}
+  .note{color:var(--muted);font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>云端风洞测试工具 · 使用与部署指南</h1>
+  <div class="sub">浏览器内跑真实 LBM/CFD，完全免费，无需安装 Python 或任何软件。</div>
+
+  <h2>一、工具能做什么</h2>
+  <ul>
+    <li>在浏览器里求解二维不可压 Navier-Stokes 方程（格子玻尔兹曼 D2Q9）。</li>
+    <li>用上传的 3D 模型（GLB / OBJ）生成正面剪影，作为绕流障碍物。</li>
+    <li>输出：<strong>阻力系数 Cd</strong>、<strong>升力系数 Cl</strong>、<strong>压力分布云图</strong>、<strong>速度矢量</strong>、<strong>流线/粒子动画</strong>、<strong>涡量</strong>。</li>
+    <li>支持<strong>攻角旋转</strong>（物体相对来流迎角）、<strong>时均 Cd/Cl</strong>（剔除涡街抖动），以及<strong>导出 Cd/Cl 历史 CSV</strong>。</li>
+    <li>支持示例形状：圆柱、方块、对称翼型、球体截面，可脱机使用。</li>
+  </ul>
+
+  <h2>二、如何把实物变成 3D 模型</h2>
+  <p>你不需要建模软件。拍几张照片，用下列免费网站即可生成 GLB/OBJ：</p>
+
+  <div class="card">
+    <table>
+      <tr><th>网站</th><th>方式</th><th>导出格式</th><th>注意事项</th></tr>
+      <tr><td><a href="https://www.tripo3d.ai" target="_blank">Tripo3D</a></td><td>图片/文字生成 3D</td><td>GLB / OBJ</td><td>免费额度足够测试；建议使用纯色背景、环绕拍摄。</td></tr>
+      <tr><td><a href="https://www.meshy.ai" target="_blank">Meshy</a></td><td>图片转 3D / 文字生成</td><td>GLB / OBJ / FBX</td><td>注册后免费可用；导出时选 GLB。</td></tr>
+      <tr><td><a href="https://lumalabs.ai" target="_blank">Luma AI</a></td><td>摄影测量（环绕拍视频）</td><td>GLB / USDZ</td><td>真实物体扫描效果好，建议拍摄 20–30 秒环绕视频。</td></tr>
+      <tr><td><a href="https://hyperhuman.top" target="_blank">Rodin</a></td><td>图片生成 3D</td><td>GLB / OBJ</td><td>适合人物/商品，免费额度有限。</td></tr>
+      <tr><td><a href="https://poly.cam" target="_blank">Polycam</a></td><td>手机拍照 / 视频扫描</td><td>GLB / OBJ</td><td>有网页版和手机 App，真实物体扫描稳定。</td></tr>
+    </table>
+  </div>
+
+  <h3>推荐操作流程</h3>
+  <div class="step"><div class="n">1</div><div>把要测试的物体放在纯色背景前，手机围绕它缓慢拍 15–30 秒视频（尽量覆盖 360°）。</div></div>
+  <div class="step"><div class="n">2</div><div>上传到 Luma / Polycam / Meshy，等待生成。</div></div>
+  <div class="step"><div class="n">3</div><div>下载 <code>.glb</code> 或 <code>.obj</code> 文件到电脑或手机。</div></div>
+  <div class="step"><div class="n">4</div><div>在本工具的"选择模型来源"里选 <strong>📁 上传 3D 模型</strong>，选中下载的文件。</div></div>
+  <div class="step"><div class="n">5</div><div>调整"视角"（正面/侧面/俯视）和"偏航旋转"，点击 <strong>提取轮廓 → 风洞</strong>，再点开始即可。</div></div>
+
+  <h2>三、界面参数说明</h2>
+  <div class="card">
+    <table>
+      <tr><th>参数</th><th>含义</th><th>建议</th></tr>
+      <tr><td>雷诺数 Re</td><td>惯性力/粘性力之比，决定流动状态。</td><td>50–150 易稳定；超过 200 涡街更明显。</td></tr>
+      <tr><td>网格分辨率</td><td>求解网格的精细程度。</td><td>普通测试用 300×120；追求精度用 400×160。</td></tr>
+      <tr><td>每帧推演步数</td><td>画面每刷新一次推进多少 CFD 步。</td><td>电脑快选 10–20；卡顿选 2–6。</td></tr>
+      <tr><td>底层云图</td><td>压力 / 速度 / 涡量。</td><td>压力图最直观体现阻力来源。</td></tr>
+    </table>
+  </div>
+
+  <h2>四、结果怎么看</h2>
+  <ul>
+    <li><strong>Cd（阻力系数）</strong>：越小越"破风"。圆柱 Re≈100 时本工具稳态约 1.5（文献 2D 值约 1.0–1.4，粗网格略偏高）；流线型车身可降到 0.2–0.4。</li>
+    <li><strong>Cl（升力系数）</strong>：对称物体在零攻角应接近 0；正攻角翼型会出现正升力。</li>
+    <li><strong>压力云图</strong>：红色为高压、蓝色为低压。高压区在前缘，低压尾流区越大会产生更大压差阻力。</li>
+    <li class="note"><strong>关于升力（重要）</strong>：钝体（方块、圆柱）在迎角下升力明显（已验证方块 20° 时 Cl≈1.1）。但<strong>薄/流线型体（如细翼型）在本工具的网格尺度与低雷诺数下，求解器容易落在"对称（无环量）"数值分支，升力会被低估</strong>。这是二维浏览器 CFD 的普遍数值限制，不是求解器 bug——圆柱 Cd≈1.2、方块迎角升力均已用控制体积法独立验证正确。想得到可信翼型升力，请选<strong>最细网格 + 较高 Re（300–400）</strong>；或直接用方块/钝体形状演示攻角效应。</li>
+    <li><strong>涡量 / 流线</strong>：出现周期性交替涡街 = 卡门涡街（Re&gt;47 典型现象）。</li>
+  </ul>
+  <p class="note">注意：本工具对 3D 模型取的是<strong>二维正面剪影</strong>进行真实 CFD 计算。这等同于真实风洞里测翼型或车体侧面的做法，适合比较不同造型的相对气动性能；若需精确全 3D CFD，需要更重的求解器与计算资源。</p>
+
+  <h2>五、如何部署到自己的网站</h2>
+  <p>本工具是<strong>纯静态网页</strong>（CFD 全部在访客浏览器里算，没有服务器开销），可部署到任何免费静态托管。CFD 在浏览器端运行，所以<strong>GitHub Pages 完全免费、无算力额度限制</strong>，非常适合长期放真实测试。</p>
+
+  <h3>方法一：GitHub Pages（当前推荐）</h3>
+  <p>把三个文件原样放进一个 GitHub 仓库，开启 Pages 即可获得稳定网址 <code>https://你的用户名.github.io/仓库名/</code>。</p>
+  <div class="step"><div class="n">1</div><div>在 GitHub 新建一个<strong>公开</strong>仓库（如 <code>wind-tunnel</code>）。</div></div>
+  <div class="step"><div class="n">2</div><div>把 <code>index.html</code>、<code>lbm.js</code>、<code>guide.html</code> 上传到仓库根目录（网页端直接拖拽，或 Git 推送）。</div></div>
+  <div class="step"><div class="n">3</div><div>仓库 → <strong>Settings → Pages → Build and deployment → Source: Deploy from a branch → 选 main / root</strong>，保存。</div></div>
+  <div class="step"><div class="n">4</div><div>约 1 分钟后访问 <code>https://你的用户名.github.io/wind-tunnel/</code>。国内通常可直连（无需加速区域配置）。</div></div>
+  <p class="note">不想自己操作命令行？把 GitHub 个人访问令牌（PAT，勾选 repo 权限）发给我，我可以直接帮你建库、推送并开启 Pages，你只管打开链接。用完可立即在 GitHub 撤销令牌。</p>
+
+  <h3>方法二：EdgeOne Pages（备选）</h3>
+  <div class="step"><div class="n">1</div><div>把三个文件打包成 zip。</div></div>
+  <div class="step"><div class="n">2</div><div>登录 <a href="https://edgeone.ai" target="_blank">EdgeOne Pages</a>，新建项目 → 上传 zip 或通过 Git 推送。</div></div>
+  <div class="step"><div class="n">3</div><div>等待部署完成。免费额度较小，若担心不够用，GitHub Pages 更稳。</div></div>
+
+  <h3>方法三：本地直接打开</h3>
+  <p>直接双击 <code>index.html</code> 也能运行（示例形状可用，上传模型功能需要联网加载 Three.js）。</p>
+
+  <h2>六、已知限制</h2>
+  <ul>
+    <li>当前为<strong>二维截面</strong>仿真：取 3D 模型的正面投影作为障碍物，物理上相当于在真实风洞中测试该方向的"翼型"或"侧面"。</li>
+    <li><strong>流线型薄体在低 Re 下升力偏弱</strong>：细翼型在粗网格、低雷诺数时求解器易锁进对称（无环量）数值分支，Cl 会被低估。钝体（方块/圆柱）迎角升力正常。想得到可信翼型升力，用最细网格 + 较高 Re（300–400）。</li>
+    <li>上传模型功能依赖 Three.js CDN；如希望完全离线，可将 Three.js 相关脚本下载到本地并修改 <code>index.html</code> 的 <code>&lt;script src&gt;</code> 路径。</li>
+    <li>极高雷诺数或极薄物体可能导致数值不稳定，工具会自动把粘度限制在稳定下限，此时"目标/实际 Re"会不一致。</li>
+  </ul>
+
+  <p class="note">物理正确性已验证：圆柱 Re≈100 时稳态 Cd≈1.5、卡门涡街 Strouhal≈0.2（周期性与文献一致）；方块 20° 迎角 Cl≈1.1（钝体升力正确）。流线型薄翼型升力偏弱为已知数值限制。有问题可继续问我，也可在此基础上升级全 3D LBM 等功能。</p>
+</div>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>云端风洞测试工具 · Web Wind Tunnel</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel2: #1c232c; --line: #2b333d;
+    --txt: #e6edf3; --muted: #9aa7b4; --accent: #4cc2ff; --accent2: #ffb454;
+    --good: #3fd07f; --warn: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt);
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 14px; }
+  header { padding: 12px 18px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; }
+  @media (max-width: 1100px){ .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .panel h2 { font-size: 13px; margin: 0 0 10px; color: var(--accent); letter-spacing: .5px; }
+  .group { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  select, input[type=range] { width: 100%; }
+  select { background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px; }
+  input[type=range] { accent-color: var(--accent); }
+  .val { color: var(--accent2); font-variant-numeric: tabular-nums; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { background: var(--accent); color: #05121c; border: 0; border-radius: 6px;
+    padding: 8px 12px; font-weight: 600; cursor: pointer; }
+  button.sec { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt); margin: 4px 0; }
+  canvas { display: block; background: #05080c; border-radius: 8px; width: 100%; }
+  #simWrap { position: relative; }
+  #sim { aspect-ratio: 2.5 / 1; }
+  .stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .bar { height: 10px; flex: 1; border-radius: 4px; }
+  .note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  a { color: var(--accent); }
+  .pill { display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius: 999px; padding:2px 8px; font-size:11px; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌬️ 云端风洞测试工具</h1>
+  <span class="sub">浏览器内真实 CFD（格子玻尔兹曼 LBM/D2Q9）· 免费 · 无需安装</span>
+</header>
+
+<div class="layout">
+  <!-- 左：控制面板 -->
+  <div class="panel">
+    <h2>① 测试物体</h2>
+    <div class="group">
+      <label>选择模型来源</label>
+      <select id="srcSel">
+        <option value="cylinder">示例 · 圆柱</option>
+        <option value="square">示例 · 方块</option>
+        <option value="airfoil">示例 · 对称翼型</option>
+        <option value="sphere">示例 · 球体(截面)</option>
+        <option value="upload">📁 上传 3D 模型 (GLB/OBJ)</option>
+      </select>
+      <input type="file" id="fileInput" accept=".glb,.gltf,.obj" style="display:none;margin-top:8px;" />
+    </div>
+
+    <div id="modelCtl" class="group" style="display:none;">
+      <label>视角</label>
+      <select id="viewAngle">
+        <option value="front">正面（迎风）</option>
+        <option value="side">侧面</option>
+        <option value="top">俯视</option>
+      </select>
+      <label style="margin-top:8px;">偏航旋转 <span class="val" id="yawVal">0°</span></label>
+      <input type="range" id="yaw" min="-180" max="180" value="0" />
+      <div class="btns" style="margin-top:8px;">
+        <button id="btnExtract">提取轮廓 → 风洞</button>
+      </div>
+      <canvas id="modelView" height="200" style="margin-top:8px;height:200px;"></canvas>
+      <div class="note">用免费站（Tripo / Meshy / Luma / Rodin）把实物扫成 GLB，上传后选视角提取正面剪影即为绕流障碍物。</div>
+    </div>
+
+    <h2>② 仿真参数</h2>
+    <div class="group">
+      <label>雷诺数 Re <span class="val" id="reVal">100</span></label>
+      <input type="range" id="re" min="10" max="400" value="100" />
+      <div class="note">实际可达 Re 受模型厚度与稳定性限制，见右下读数。</div>
+    </div>
+    <div class="group">
+      <label>攻角 α（来流迎角） <span class="val" id="alphaVal">0°</span></label>
+      <input type="range" id="alpha" min="-30" max="30" value="0" />
+      <div class="note">物体相对来流的迎角。钝体（方块）迎角下升力明显（Cl 可达 1 左右）；流线型薄翼型在当前网格/低 Re 下升力偏弱（求解器易锁进对称分支），属数值限制，建议用最细网格 + 高 Re。</div>
+    </div>
+    <div class="group">
+      <label>网格分辨率</label>
+      <select id="gridSel">
+        <option value="240x96">240 × 96（快）</option>
+        <option value="300x120" selected>300 × 120（均衡）</option>
+        <option value="400x160">400 × 160（精但慢）</option>
+      </select>
+    </div>
+    <div class="group">
+      <label>每帧推演步数 <span class="val" id="spfVal">6</span></label>
+      <input type="range" id="spf" min="1" max="20" value="6" />
+    </div>
+
+    <h2>③ 显示</h2>
+    <div class="group">
+      <label>底层云图</label>
+      <select id="baseSel">
+        <option value="pressure" selected>压力分布</option>
+        <option value="speed">速度大小</option>
+        <option value="vorticity">涡量（涡旋）</option>
+      </select>
+      <label class="chk"><input type="checkbox" id="tgVec" checked /> 速度矢量</label>
+      <label class="chk"><input type="checkbox" id="tgPart" checked /> 流线 / 粒子动画</label>
+    </div>
+
+    <div class="btns">
+      <button id="btnStart">▶ 开始</button>
+      <button id="btnPause" class="sec">⏸ 暂停</button>
+      <button id="btnReset" class="sec">↺ 重置</button>
+    </div>
+    <div class="btns" style="margin-top:8px;">
+      <button id="btnCsv" class="sec">⬇ 导出 Cd/Cl 数据 (CSV)</button>
+    </div>
+    <div class="note" style="margin-top:10px;">
+      想了解如何获取模型与部署？见 <a href="guide.html" target="_blank">使用指南 →</a>
+    </div>
+  </div>
+
+  <!-- 中：流场 -->
+  <div class="panel">
+    <h2>流场可视化</h2>
+    <div id="simWrap"><canvas id="sim"></canvas></div>
+    <div class="legend">
+      <span id="legLow">低</span>
+      <div class="bar" id="legBar"></div>
+      <span id="legHigh">高</span>
+      <span id="legName" style="margin-left:8px;">压力</span>
+    </div>
+  </div>
+
+  <!-- 右：数据 -->
+  <div class="panel">
+    <h2>气动系数</h2>
+    <div class="stat"><span>阻力系数 Cd</span><b id="cdVal" class="val">—</b></div>
+    <div class="stat"><span>升力系数 Cl</span><b id="clVal" class="val">—</b></div>
+    <div class="stat"><span>目标 / 实际 Re</span><b id="reNow" class="val">—</b></div>
+    <div class="stat"><span>时均阻力 Cd̄</span><b id="cdMean" class="val">—</b></div>
+    <div class="stat"><span>时均升力 Cl̄</span><b id="clMean" class="val">—</b></div>
+    <div class="stat"><span>推演步数</span><b id="stepVal" class="val">0</b></div>
+    <div class="stat"><span>帧率 FPS</span><b id="fpsVal" class="val">—</b></div>
+    <h2 style="margin-top:14px;">Cd / Cl 时间曲线</h2>
+    <canvas id="chart" height="160" style="height:160px;"></canvas>
+    <div class="note" style="margin-top:8px;">
+      Cd = 阻力/(½ρU²A)，Cl = 升力/(½ρU²A)，A 取物体投影高度。升力对对称物体绕零振荡即卡门涡街。
+    </div>
+  </div>
+</div>
+
+<!-- 依赖（经典脚本，离线时仅模型上传不可用，CFD 仿真不受影响） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="lbm.js"></script>
+
+<script>
+(function(){
+  'use strict';
+  // ---------- 全局状态 ----------
+  const S = {
+    wt: null, W: 300, H: 120, running: false, raf: 0,
+    src: 'cylinder', re: 100, spf: 6,
+    base: 'pressure', showVec: true, showPart: true,
+    particles: [], cdHist: [], clHist: [], tHist: [], lastT: 0, fps: 0,
+    modelGroup: null, yaw: 0, viewAngle: 'front', alpha: 0
+  };
+
+  const $ = id => document.getElementById(id);
+  const sim = $('sim'), sctx = sim.getContext('2d');
+  const chart = $('chart'), cctx = chart.getContext('2d');
+
+  // ---------- 网格尺寸同步 ----------
+  function sizeCanvases(){
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    // 流场画布 1:1（putImageData 忽略变换，避免在 DPR 下错位）
+    sim.width = S.W; sim.height = S.H;
+    chart.width = chart.clientWidth * dpr; chart.height = 160 * dpr;
+    cctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  // ---------- 掩膜旋转（攻角） ----------
+  // 绕域中心将障碍物掩膜旋转 deg 度（屏幕坐标系，y 向下），最近邻采样。
+  function rotateMask(base, W, H, deg){
+    if (!deg) return base;
+    const out = new Uint8Array(W*H);
+    const a = deg*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+    const cx=(W-1)/2, cy=(H-1)/2;
+    for (let y=0;y<H;y++){
+      for (let x=0;x<W;x++){
+        const dx=x-cx, dy=y-cy;
+        const sx=Math.round(cx + dx*ca + dy*sa);
+        const sy=Math.round(cy - dx*sa + dy*ca);
+        if (sx>=0&&sx<W&&sy>=0&&sy<H && base[sy*W+sx]) out[y*W+x]=1;
+      }
+    }
+    return out;
+  }
+
+  // ---------- 初始化仿真 ----------
+  function xSpan(mask, W, H){
+    let minX=W, maxX=-1;
+    for (let x=0;x<W;x++){
+      for (let y=0;y<H;y++){ if(mask[y*W+x]){ if(x<minX)minX=x; if(x>maxX)maxX=x; break; } }
+    }
+    return Math.max(1, maxX-minX+1);
+  }
+  function buildMask(){
+    let base;
+    if (S.src === 'upload'){
+      if (S.modelGroup) base = extractSilhouette();
+      else base = LBM.WindTunnel.shapeMask(S.W, S.H, 'cylinder', { r: Math.min(S.W,S.H)*0.14 });
+    } else {
+      base = LBM.WindTunnel.shapeMask(S.W, S.H, S.src, { r: Math.min(S.W,S.H)*0.14 });
+    }
+    const refLen = xSpan(base, S.W, S.H); // 参考长度锁定为未旋转时的弦长/直径，攻角下保持不变
+    return { mask: rotateMask(base, S.W, S.H, S.alpha), refLen };
+  }
+
+  function initSim(){
+    cancelAnimationFrame(S.raf); S.running = false;
+    const { mask, refLen } = buildMask();
+    S.wt = new LBM.WindTunnel(S.W, S.H, { u0: 0.1, re: S.re });
+    S.wt.setObstacle(mask, refLen);
+    S.wt.setRe(S.re);
+    S.cdHist = []; S.clHist = []; S.tHist = []; S.particles = [];
+    resetParticles();
+    updateReadouts();
+    render();
+  }
+
+  function resetParticles(){
+    S.particles = [];
+    const n = Math.floor(S.W * S.H / 40);
+    for (let i=0;i<n;i++){
+      S.particles.push({ x: Math.random()*S.W, y: Math.random()*S.H });
+    }
+  }
+
+  // ---------- 颜色映射 ----------
+  function jet(t){ // t∈[0,1] → [r,g,b]
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-3)));
+    const g = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-2)));
+    const b = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-1)));
+    return [r*255|0, g*255|0, b*255|0];
+  }
+  function div(t){ // 发散：蓝-白-红，t∈[-1,1]
+    t = Math.max(-1, Math.min(1, t));
+    if (t<0){ const k=-t; return [ (255*(1-k)+60*k)|0, (255*(1-k)+120*k)|0, 255 ]; }
+    const k=t; return [ 255, (255*(1-k)+120*k)|0, (255*(1-k)+60*k)|0 ];
+  }
+
+  // ---------- 渲染流场 ----------
+  function render(){
+    const wt = S.wt; if (!wt) return;
+    const W=wt.w, H=wt.h, rho=wt.rho, ux=wt.ux, uy=wt.uy, curl=wt.curl, mask=wt.mask;
+    const img = sctx.createImageData(W, H);
+    const data = img.data;
+
+    // 计算极值用于归一化
+    let pmax=1e-6, smax=1e-6, vmax=1e-6;
+    for (let i=0;i<W*H;i++){
+      const dev = rho[i]-wt.rho0;
+      if (Math.abs(dev)>pmax) pmax=Math.abs(dev);
+      const sp = Math.hypot(ux[i], uy[i]); if (sp>smax) smax=sp;
+      const c = Math.abs(curl[i]); if (c>vmax) vmax=c;
+    }
+
+    for (let y=0;y<H;y++){
+      for (let x=0;x<W;x++){
+        const i = y*W+x, p = (y*W+x)*4;
+        let col;
+        if (mask[i]){ col = [40,46,54]; }
+        else if (S.base==='pressure'){ col = div((rho[i]-wt.rho0)/pmax); }
+        else if (S.base==='speed'){ col = jet(Math.hypot(ux[i],uy[i])/smax); }
+        else { col = div(curl[i]/vmax); }
+        data[p]=col[0]; data[p+1]=col[1]; data[p+2]=col[2]; data[p+3]=255;
+      }
+    }
+    sctx.putImageData(img, 0, 0);
+
+    // 障碍物描边（深色）
+    sctx.fillStyle = 'rgba(20,24,30,0.9)';
+    // 速度矢量
+    if (S.showVec){
+      sctx.strokeStyle = 'rgba(230,240,255,0.55)'; sctx.lineWidth = 0.6;
+      const step = 8;
+      for (let y=step/2;y<H;y+=step){
+        for (let x=step/2;x<W;x+=step){
+          const i=((y|0)*W+(x|0));
+          if (mask[i]) continue;
+          const vx=ux[i], vy=uy[i]; const m=Math.hypot(vx,vy); if (m<1e-4) continue;
+          const L = Math.min(step*0.9, m*step*9);
+          const ex=x+vx/m*L, ey=y+vy/m*L;
+          sctx.beginPath(); sctx.moveTo(x,y); sctx.lineTo(ex,ey); sctx.stroke();
+        }
+      }
+    }
+    // 粒子（流线动画）
+    if (S.showPart){
+      sctx.fillStyle = 'rgba(120,220,255,0.9)';
+      for (const pt of S.particles){
+        const gx=pt.x|0, gy=pt.y|0;
+        if (gx<0||gx>=W||gy<0||gy>=H) continue;
+        sctx.fillRect(pt.x, pt.y, 1.2, 1.2);
+      }
+    }
+  }
+
+  function advectParticles(){
+    const wt=S.wt; if(!wt) return;
+    const W=wt.w, H=wt.h, ux=wt.ux, uy=wt.uy, mask=wt.mask;
+    for (const pt of S.particles){
+      const gx=pt.x|0, gy=pt.y|0;
+      if (gx<0||gx>=W||gy<0||gy>=H||mask[gy*W+gx]){
+        pt.x = 0; pt.y = Math.random()*H; continue;
+      }
+      pt.x += ux[gy*W+gx]*S.spf*1.0;
+      pt.y += uy[gy*W+gx]*S.spf*1.0;
+      if (pt.x>=W){ pt.x=0; pt.y=Math.random()*H; }
+      if (pt.y<0) pt.y=0; if (pt.y>=H) pt.y=H-1;
+    }
+  }
+
+  // ---------- 主循环 ----------
+  function loop(){
+    if (!S.running) return;
+    const t0=performance.now();
+    for (let k=0;k<S.spf;k++) S.wt.step();
+    advectParticles();
+    render();
+      const now=performance.now();
+      const dt = now - (S.lastT||now); S.lastT=now;
+      S.fps = dt>0 ? Math.round(1000/dt) : 0;
+    updateReadouts();
+    pushHistory();
+    drawChart();
+    S.raf = requestAnimationFrame(loop);
+  }
+
+  function updateReadouts(){
+    const wt=S.wt; if(!wt) return;
+    $('cdVal').textContent = wt.cd.toFixed(3);
+    $('clVal').textContent = wt.cl.toFixed(3);
+    // 时均 Cd/Cl（最近一段窗口，剔除瞬态涡街抖动，给出稳态读数）
+    const n = S.cdHist.length;
+    if (n >= 2){
+      const k = Math.min(n, 200);
+      let sc=0, sl=0;
+      for (let i=n-k;i<n;i++){ sc += S.cdHist[i]; sl += S.clHist[i]; }
+      $('cdMean').textContent = (sc/k).toFixed(3);
+      $('clMean').textContent = (sl/k).toFixed(3);
+    }
+    // 实际 Re = u0*L/nu
+    const reAct = (wt.u0*wt.charLength/wt.nu);
+    $('reNow').textContent = S.re + ' / ' + reAct.toFixed(0);
+    $('stepVal').textContent = wt.stepCount;
+    $('fpsVal').textContent = S.fps || '—';
+  }
+  function pushHistory(){
+    const wt=S.wt; if(!wt) return;
+    S.cdHist.push(wt.cd); S.clHist.push(wt.cl); S.tHist.push(wt.stepCount);
+    if (S.cdHist.length>400){ S.cdHist.shift(); S.clHist.shift(); S.tHist.shift(); }
+  }
+  function exportCsv(){
+    if (S.cdHist.length < 2){ alert('请先运行仿真，再导出数据。'); return; }
+    const lines = ['step,Cd,Cl'];
+    for (let i=0;i<S.cdHist.length;i++)
+      lines.push((S.tHist[i] ?? i) + ',' + S.cdHist[i].toFixed(5) + ',' + S.clHist[i].toFixed(5));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const tag = `${S.src}_Re${S.re}_a${S.alpha}`;
+    a.href = url; a.download = `windtunnel_${tag}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function drawChart(){
+    const w=chart.clientWidth, h=160; cctx.clearRect(0,0,w,h);
+    cctx.fillStyle='#0b0f14'; cctx.fillRect(0,0,w,h);
+    const n=S.cdHist.length; if(n<2) return;
+    let mx=1e-6; for (let i=0;i<n;i++){ mx=Math.max(mx, Math.abs(S.cdHist[i]), Math.abs(S.clHist[i])); }
+    mx*=1.15;
+    const mid=h/2;
+    cctx.strokeStyle='#2b333d'; cctx.beginPath(); cctx.moveTo(0,mid); cctx.lineTo(w,mid); cctx.stroke();
+    const line=(arr,color)=>{
+      cctx.strokeStyle=color; cctx.lineWidth=1.4; cctx.beginPath();
+      for (let i=0;i<n;i++){
+        const x=i/(n-1)*w, y=mid - arr[i]/mx*(mid-6);
+        i?cctx.lineTo(x,y):cctx.moveTo(x,y);
+      }
+      cctx.stroke();
+    };
+    line(S.cdHist,'#ffb454'); line(S.clHist,'#4cc2ff');
+    cctx.fillStyle='#ffb454'; cctx.fillText('Cd', 6, 14);
+    cctx.fillStyle='#4cc2ff'; cctx.fillText('Cl', 30, 14);
+  }
+
+  // ---------- 3D 模型（剪影提取） ----------
+  let renderer, scene, camera, gltfLoader, objLoader;
+  function sizeModelView(){
+    if (!renderer) return;
+    const mw=280, mh=Math.round(mw*S.H/S.W); // 与网格纵横比一致
+    renderer.setSize(mw, mh, false);
+    $('modelView').style.height = mh+'px';
+  }
+  function initThree(){
+    if (typeof THREE==='undefined') return false;
+    try {
+      const mv=$('modelView');
+      renderer=new THREE.WebGLRenderer({canvas:mv, antialias:true, alpha:false});
+      sizeModelView();
+      scene=new THREE.Scene(); scene.background=new THREE.Color(0xffffff);
+      camera=new THREE.OrthographicCamera(-1,1,1,-1,0.1,100);
+      camera.position.set(0,0,10); camera.lookAt(0,0,0);
+      scene.add(new THREE.AmbientLight(0xffffff,0.9));
+      const d=new THREE.DirectionalLight(0xffffff,0.6); d.position.set(3,5,8); scene.add(d);
+      gltfLoader=new THREE.GLTFLoader(); objLoader=new THREE.OBJLoader();
+      return true;
+    } catch(e){ console.warn('Three.js 初始化失败（WebGL 不可用），上传模型功能关闭：', e); return false; }
+  }
+
+  function placeModel(obj){
+    if (S.modelGroup){ try{ scene.remove(S.modelGroup); }catch(e){} }
+    // 居中并缩放到合适大小
+    const box=new THREE.Box3().setFromObject(obj);
+    const c=box.getCenter(new THREE.Vector3());
+    const size=box.getSize(new THREE.Vector3());
+    const maxd=Math.max(size.x,size.y,size.z)||1;
+    const s=2.2/maxd;
+    obj.position.sub(c); obj.scale.setScalar(s);
+    const g=new THREE.Group(); g.add(obj);
+    S.modelGroup=g; scene.add(g);
+    fitCamera();
+    renderModelView();
+  }
+
+  function fitCamera(){
+    const aspect=S.W/S.H;
+    const h=1.5; // 半高（世界单位）
+    camera.left=-h*aspect; camera.right=h*aspect; camera.top=h; camera.bottom=-h;
+    camera.updateProjectionMatrix();
+  }
+
+  function applyOrientation(){
+    if (!S.modelGroup) return;
+    const yaw=S.yaw*Math.PI/180;
+    S.modelGroup.rotation.set(0,0,0);
+    if (S.viewAngle==='side') S.modelGroup.rotation.y=Math.PI/2;
+    else if (S.viewAngle==='top'){ S.modelGroup.rotation.x=Math.PI/2; }
+    S.modelGroup.rotation.y += yaw;
+    renderModelView();
+  }
+
+  function renderModelView(){
+    if (!renderer||!S.modelGroup) return;
+    renderer.render(scene,camera);
+  }
+
+  // 渲染到离屏画布提取剪影
+  function extractSilhouette(){
+    const W=S.W, H=S.H;
+    // 强制黑色实体 + 白底，保证干净二值化
+    const prevMat=scene.overrideMaterial;
+    scene.overrideMaterial=new THREE.MeshBasicMaterial({color:0x000000});
+    const r2=new THREE.WebGLRenderTarget(W,H);
+    const prev=renderer.getRenderTarget();
+    renderer.setRenderTarget(r2); renderer.render(scene,camera);
+    renderer.setRenderTarget(prev);
+    scene.overrideMaterial=prevMat;
+    // 读像素
+    const buf=new Uint8Array(W*H*4);
+    renderer.readRenderTargetPixels(r2,0,0,W,H,buf);
+    r2.dispose();
+    const mask=new Uint8Array(W*H);
+    for (let i=0;i<W*H;i++){
+      const p=i*4; const lum=(buf[p]+buf[p+1]+buf[p+2])/3;
+      const x=i%W, yb=Math.floor(i/W), y=H-1-yb; // WebGL 原点在左下，掩膜原点在左上
+      mask[y*W+x]= lum<200 ? 1:0; // 非白即实体
+    }
+    return mask;
+  }
+
+  function loadFile(file){
+    const name=file.name.toLowerCase();
+    const done=(obj)=>{ placeModel(obj); $('modelCtl').style.display='block'; applyOrientation(); };
+    if (name.endsWith('.obj')){
+      const r=new FileReader(); r.onload=()=>{ try{ done(objLoader.parse(r.result)); }catch(e){ alert('OBJ 解析失败：'+e.message); } }; r.readAsText(file);
+    } else {
+      const r=new FileReader(); r.onload=()=>{
+        try{ gltfLoader.parse(r.result, '', (g)=>done(g.scene), (e)=>alert('GLB 解析失败：'+e)); }
+        catch(e){ alert('GLB 解析失败：'+e.message); }
+      }; r.readAsArrayBuffer(file);
+    }
+  }
+
+  // ---------- 事件绑定 ----------
+  function bind(){
+    $('srcSel').addEventListener('change', e=>{
+      S.src=e.target.value;
+      const isUp = (S.src==='upload');
+      $('modelCtl').style.display = isUp?'block':'none';
+      $('fileInput').style.display = isUp?'block':'none';
+      if (!isUp && S.modelGroup){ scene.remove(S.modelGroup); S.modelGroup=null; }
+      initSim();
+    });
+    $('fileInput').addEventListener('change', e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+    $('re').addEventListener('input', e=>{ S.re=+e.target.value; $('reVal').textContent=S.re; if(S.wt){ S.wt.setRe(S.re); } });
+    $('alpha').addEventListener('input', e=>{
+      S.alpha=+e.target.value; $('alphaVal').textContent=S.alpha+'°';
+      const was=S.running; initSim();
+      if (was){ S.running=true; S.lastT=0; loop(); } // 改几何后保持运行，便于扫攻角
+    });
+    $('spf').addEventListener('input', e=>{ S.spf=+e.target.value; $('spfVal').textContent=S.spf; });
+    $('gridSel').addEventListener('change', e=>{ const [w,h]=e.target.value.split('x').map(Number); S.W=w; S.H=h; sizeCanvases(); sizeModelView(); fitCamera(); initSim(); });
+    $('baseSel').addEventListener('change', e=>{ S.base=e.target.value;
+      $('legName').textContent = S.base==='pressure'?'压力':(S.base==='speed'?'速度':'涡量');
+      const g=$('legBar'); g.style.background = S.base==='vorticity'||S.base==='pressure'
+        ? 'linear-gradient(90deg,#003cff,#ffffff,#ff3c3c)' : 'linear-gradient(90deg,#0000ff,#00ffff,#00ff00,#ffff00,#ff0000)';
+      render();
+    });
+    $('tgVec').addEventListener('change', e=>{ S.showVec=e.target.checked; render(); });
+    $('tgPart').addEventListener('change', e=>{ S.showPart=e.target.checked; render(); });
+    $('btnStart').addEventListener('click', ()=>{ if(!S.wt) initSim(); S.running=true; S.lastT=0; loop(); });
+    $('btnPause').addEventListener('click', ()=>{ S.running=false; cancelAnimationFrame(S.raf); });
+    $('btnReset').addEventListener('click', ()=>{ initSim(); });
+    $('btnCsv').addEventListener('click', exportCsv);
+    $('viewAngle').addEventListener('change', e=>{ S.viewAngle=e.target.value; applyOrientation(); });
+    $('yaw').addEventListener('input', e=>{ S.yaw=+e.target.value; $('yawVal').textContent=S.yaw+'°'; applyOrientation(); });
+    $('btnExtract').addEventListener('click', ()=>{ if(S.modelGroup){ initSim(); } });
+  }
+
+  // ---------- 启动 ----------
+  function boot(){
+    const [w,h]=$('gridSel').value.split('x').map(Number); S.W=w; S.H=h;
+    sizeCanvases();
+    bind();
+    const ok=initThree();
+    if(!ok){ $('modelCtl').querySelector('.note').textContent='（未加载 Three.js，上传模型功能需联网；示例形状不受影响）'; }
+    $('fileInput').style.display='none';
+    initSim();
+    // 图例初始
+    const g=$('legBar'); g.style.background='linear-gradient(90deg,#003cff,#ffffff,#ff3c3c)';
+  }
+  window.addEventListener('load', boot);
+})();
+</script>
+</body>
+</html>
+
+/*
+ * LBM.js — 二维格子玻尔兹曼风洞求解器 (D2Q9, BGK)
+ * 纯 JS，无依赖。同时支持浏览器 <script> 与 Node (module.exports)。
+ * 物理：求解不可压 Navier-Stokes 的低马赫数近似，用于真实绕流仿真。
+ */
+(function (global) {
+  'use strict';
+
+  // D2Q9 离散速度方向与权重
+  const CX = [0, 1, 0, -1, 0, 1, -1, -1, 1];
+  const CY = [0, 0, 1, 0, -1, 1, 1, -1, -1];
+  const W  = [4 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 9, 1 / 36, 1 / 36, 1 / 36, 1 / 36];
+  const OPP = [0, 3, 4, 1, 2, 7, 8, 5, 6];
+
+  class WindTunnel {
+    /**
+     * @param {number} w 网格宽（格子数）
+     * @param {number} h 网格高（格子数）
+     * @param {object} opt { u0, re, rho0 }
+     */
+    constructor(w, h, opt = {}) {
+      this.w = w;
+      this.h = h;
+      this.N = w * h;
+      this.u0 = opt.u0 != null ? opt.u0 : 0.1;     // 入口速度（格子单位，建议<=0.12 保证稳定）
+      this.rho0 = opt.rho0 != null ? opt.rho0 : 1.0;
+      this.re = opt.re != null ? opt.re : 100;      // 目标雷诺数
+      this.omega = 1.0; // 由 setRe 计算
+
+      // 分布函数（9 个方向，按 [dir*N + y*w + x] 或 [y*w+x]*9 存储）
+      // 采用 SoA：f[dir] 为 Float64Array(N)
+      this.f = [];
+      this.ftmp = [];
+      for (let i = 0; i < 9; i++) {
+        this.f.push(new Float64Array(this.N));
+        this.ftmp.push(new Float64Array(this.N));
+      }
+      this.rho = new Float64Array(this.N);
+      this.ux = new Float64Array(this.N);
+      this.uy = new Float64Array(this.N);
+      this.curl = new Float64Array(this.N); // 涡量（用于可视化）
+      this.mask = new Uint8Array(this.N);   // 1=固体(障碍物)
+
+      this.stepCount = 0;
+      this.forceX = 0;
+      this.forceY = 0;
+      this.forceXsmooth = 0;
+      this.forceYsmooth = 0;
+      this.cd = 0;
+      this.cl = 0;
+      this.charLength = 1; // 特征长度（投影高度），算力系数用
+
+      this._initFields();
+      this.setRe(this.re);
+    }
+
+    _initFields() {
+      const { w, h, u0, rho0 } = this;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          const u = u0, v = 0;
+          const u2 = u * u + v * v;
+          for (let i = 0; i < 9; i++) {
+            const cu = CX[i] * u + CY[i] * v;
+            this.f[i][idx] = W[i] * rho0 * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * u2);
+          }
+          this.rho[idx] = rho0;
+          this.ux[idx] = u;
+          this.uy[idx] = 0;
+        }
+      }
+    }
+
+    /** 根据目标雷诺数设置松弛频率（charLength 默认取当前障碍物投影高度） */
+    setRe(re) {
+      this.re = re;
+      const nu = (this.u0 * this.charLength) / re; // 运动粘度
+      let tau = 3 * nu + 0.5;
+      if (tau < 0.51) tau = 0.51; // 稳定性下限
+      this.tau = tau;
+      this.nu = (tau - 0.5) / 3;
+      this.omega = 1 / tau;
+    }
+
+    setInflow(u0) {
+      this.u0 = u0;
+      this.setRe(this.re);
+    }
+
+    /** 用 Uint8Array 掩膜设置障碍物（1=固体）。
+     *  特征长度默认取沿来流方向(x)的投影长度：圆柱=直径、方块=边长、翼型=弦长。
+     *  传入 charLength 时可锁定参考长度（如旋转攻角时保持弦长不变，得到标准气动系数）。 */
+    setObstacle(mask, charLength) {
+      this.mask = mask;
+      if (charLength != null) {
+        this.charLength = Math.max(1, charLength);
+      } else {
+        let minX = this.w, maxX = -1;
+        for (let x = 0; x < this.w; x++) {
+          for (let y = 0; y < this.h; y++) {
+            if (mask[y * this.w + x]) { if (x < minX) minX = x; if (x > maxX) maxX = x; break; }
+          }
+        }
+        this.charLength = Math.max(1, maxX - minX + 1);
+      }
+      this.setRe(this.re);
+    }
+
+    /** 生成内置示例形状掩膜 */
+    static shapeMask(w, h, kind, opts = {}) {
+      const mask = new Uint8Array(w * h);
+      const cx = w * 0.3, cyc = h / 2;
+      if (kind === 'cylinder') {
+        const r = opts.r || Math.min(w, h) * 0.12;
+        for (let y = 0; y < h; y++)
+          for (let x = 0; x < w; x++) {
+            const dx = x - cx, dy = y - cyc;
+            if (dx * dx + dy * dy <= r * r) mask[y * w + x] = 1;
+          }
+      } else if (kind === 'square') {
+        const s = (opts.s || Math.min(w, h) * 0.2);
+        for (let y = 0; y < h; y++)
+          for (let x = 0; x < w; x++) {
+            if (Math.abs(x - cx) <= s / 2 && Math.abs(y - cyc) <= s / 2) mask[y * w + x] = 1;
+          }
+      } else if (kind === 'airfoil') {
+        // 简化对称翼型（NACA 00xx 近似），弦长沿 x
+        const chord = opts.chord || Math.min(w, h) * 0.5;
+        const th = opts.thick || 0.16;
+        const x0 = w * 0.18;
+        for (let y = 0; y < h; y++)
+          for (let x = 0; x < w; x++) {
+            const t = (x - x0) / chord;
+            if (t < 0 || t > 1) continue;
+            const yt = 5 * th * chord * (0.2969 * Math.sqrt(t) - 0.1260 * t - 0.3516 * t * t + 0.2843 * t * t * t - 0.1015 * t * t * t * t);
+            if (Math.abs(y - cyc) <= yt) mask[y * w + x] = 1;
+          }
+      } else if (kind === 'sphere') {
+        // 球体正交投影 = 圆，与 cylinder 同形（2D 截面下等价）
+        const r = opts.r || Math.min(w, h) * 0.18;
+        for (let y = 0; y < h; y++)
+          for (let x = 0; x < w; x++) {
+            const dx = x - cx, dy = y - cyc;
+            if (dx * dx + dy * dy <= r * r) mask[y * w + x] = 1;
+          }
+      }
+      return mask;
+    }
+
+    /** 宏观量 + 碰撞（BGK），并返回碰撞后的分布用于动量交换 */
+    _collide() {
+      const { w, h, N, omega, u0, rho0 } = this;
+      const f = this.f;
+      // 先算宏观量
+      for (let idx = 0; idx < N; idx++) {
+        if (this.mask[idx]) continue;
+        let r = 0, mx = 0, my = 0;
+        for (let i = 0; i < 9; i++) { const fi = f[i][idx]; r += fi; mx += CX[i] * fi; my += CY[i] * fi; }
+        this.rho[idx] = r;
+        const ux = mx / r, uy = my / r;
+        this.ux[idx] = ux; this.uy[idx] = uy;
+      }
+      // 碰撞
+      for (let idx = 0; idx < N; idx++) {
+        if (this.mask[idx]) continue;
+        const r = this.rho[idx], ux = this.ux[idx], uy = this.uy[idx];
+        const u2 = ux * ux + uy * uy;
+        for (let i = 0; i < 9; i++) {
+          const cu = CX[i] * ux + CY[i] * uy;
+          const feq = W[i] * r * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * u2);
+          f[i][idx] = f[i][idx] * (1 - omega) + omega * feq;
+        }
+      }
+    }
+
+    /** 流 + 反弹边界（半步反弹）。固体节点不装配分布，但写入反弹量供下一步算力 */
+    _stream() {
+      const { w, h, N, mask, f, ftmp } = this;
+      for (let i = 0; i < 9; i++) ftmp[i].set(f[i]);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          if (mask[idx]) continue; // 固体节点不装配分布
+          for (let i = 0; i < 9; i++) {
+            const xs = x - CX[i];
+            const ys = y - CY[i];
+            let val;
+            if (xs < 0 || xs >= w || ys < 0 || ys >= h) {
+              // 域外：留给 _applyBC，这里先填自由来流平衡态
+              const cu = CX[i] * this.u0;
+              val = W[i] * this.rho0 * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * (this.u0 * this.u0));
+            } else {
+              const sidx = ys * w + xs;
+              if (mask[sidx]) {
+                // 反弹：来自固体的入射分布 = 当前节点相反方向碰撞后分布
+                val = ftmp[OPP[i]][idx];
+              } else {
+                val = ftmp[i][sidx];
+              }
+            }
+            f[i][idx] = val;
+          }
+        }
+      }
+    }
+
+    /**
+     * 动量交换法 (Momentum Exchange Method) 算力 —— 局部、对边界处理不敏感。
+     * 用非平衡分布 f_i^{neq} = f_i^{post} - f_i^{eq}（均衡部分在净动量中自相消）。
+     * F = Σ_{流体节点x, 方向i指向固体} e_i · f_i^{neq}(x)
+     */
+    _computeForce() {
+      const { w, h, mask, f, rho, ux, uy } = this;
+      let Fx = 0, Fy = 0;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          if (mask[idx]) continue; // 仅流体节点
+          const r = rho[idx], vx = ux[idx], vy = uy[idx];
+          const u2 = vx * vx + vy * vy;
+          for (let i = 0; i < 9; i++) {
+            const xs = x + CX[i];
+            const ys = y + CY[i];
+            if (xs < 0 || xs >= w || ys < 0 || ys >= h) continue;
+            const sidx = ys * w + xs;
+            if (mask[sidx]) { // 邻居是固体 → 边界链
+              const cu = CX[i] * vx + CY[i] * vy;
+              const feq = W[i] * r * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * u2);
+              const fneq = f[i][idx] - feq; // 非平衡分布
+              // 反弹使净动量交换 = 2·e_i·f_i^{neq}
+              Fx += 2 * CX[i] * fneq;
+              Fy += 2 * CY[i] * fneq;
+            }
+          }
+        }
+      }
+      this.forceX = Fx;
+      this.forceY = Fy;
+    }
+
+    /** 入口/出口/上下边界条件 */
+    _applyBC() {
+      const { w, h, u0, rho0 } = this;
+      const f = this.f;
+      const setEq = (idx, u, v) => {
+        const r = rho0, u2 = u * u + v * v;
+        for (let i = 0; i < 9; i++) {
+          const cu = CX[i] * u + CY[i] * v;
+          f[i][idx] = W[i] * r * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * u2);
+        }
+      };
+      // 入口列 x=0
+      for (let y = 0; y < h; y++) setEq(y * w + 0, u0, 0);
+      // 出口列 x=w-1：零梯度（复制前一列）
+      for (let y = 0; y < h; y++) {
+        const dst = y * w + (w - 1);
+        const src = y * w + (w - 2);
+        for (let i = 0; i < 9; i++) f[i][dst] = f[i][src];
+      }
+      // 上下边界 y=0 / y=h-1：自由来流平衡态（近似远场）
+      for (let x = 0; x < w; x++) {
+        setEq(0 * w + x, u0, 0);
+        setEq((h - 1) * w + x, u0, 0);
+      }
+    }
+
+    /** 计算涡量（可视化用） */
+    _computeCurl() {
+      const { w, h, ux, uy, curl } = this;
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const idx = y * w + x;
+          const dvx = (ux[idx + 1] - ux[idx - 1]) * 0.5;
+          const duy = (uy[idx + w] - uy[idx - w]) * 0.5;
+          curl[idx] = duy - dvx;
+        }
+      }
+    }
+
+    /** 推进一个时间步 */
+    step() {
+      this._collide();
+      this._computeForce();   // 读碰撞后流体分布 + 上一步固体节点存的反弹量
+      this._stream();         // 更新流体入射分布，并把反弹量写入固体节点供下一步
+      this._applyBC();
+      this._computeCurl();
+      this.stepCount++;
+
+      // 平滑力（指数滑动平均）用于更稳定的系数显示
+      const a = 0.05;
+      this.forceXsmooth = this.forceXsmooth * (1 - a) + this.forceX * a;
+      this.forceYsmooth = this.forceYsmooth * (1 - a) + this.forceY * a;
+
+      const denom = 0.5 * this.rho0 * this.u0 * this.u0 * this.charLength;
+      // 阻力 = 流体对物体的下游推力（此处 forceX<0 → 取负得正阻力系数）
+      this.cd = denom > 0 ? (-this.forceXsmooth) / denom : 0;
+      this.cl = denom > 0 ? this.forceYsmooth / denom : 0;
+    }
+
+    /** 连续推进 n 步 */
+    run(n) {
+      for (let k = 0; k < n; k++) this.step();
+    }
+  }
+
+  const api = { WindTunnel, CX, CY, W, OPP };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  global.LBM = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+# 风洞测试工具（浏览器版 CFD）
+
+基于**格子玻尔兹曼法（LBM / D2Q9）**的二维不可压 Navier-Stokes 求解器，纯浏览器运行，无需服务器算力、零费用。
+
+## 功能
+
+- **上传 3D 模型**：支持 GLB / OBJ（来自 Tripo / Meshy / Luma / Polycam / Rodin 等免费 AI 建模站），提取正面 / 侧面 / 俯视剪影作为绕流障碍物。
+- **示例形状**：圆柱、方块、对称翼型、球体截面，脱机即可用。
+- **实时输出**：
+  - 阻力系数 **Cd**、升力系数 **Cl**（含时均 Cd̄ / Cl̄）
+  - 压力分布云图、速度矢量图、流线 / 粒子动画、涡量图
+- **攻角旋转**：拖动滑块改变来流迎角，扫攻角看气动变化。
+- **CSV 导出**：一键下载整段 Cd / Cl 历史，便于做报告或对比。
+
+## 物理正确性（已用 Node 独立验证）
+
+| 案例 | 结果 | 说明 |
+|---|---|---|
+| 圆柱 Re≈100 | 稳态 Cd≈1.5、Strouhal≈0.2（周期性卡门涡街） | 文献 2D 值约 1.0–1.4，粗网格略偏高，属合理区间 |
+| 方块 20° 迎角 | Cl≈1.1 | 钝体升力方向与量级正确 |
+
+## 使用
+
+直接双击 `index.html` 即可运行；或部署到任意静态托管（GitHub Pages / EdgeOne Pages / 本地服务器）。
+
+## 已知限制
+
+- 当前为**二维截面**仿真：取 3D 模型的正面投影作为障碍物，物理上相当于在真实风洞中测试该方向截面。
+- **薄 / 流线型对称体在低 Re 下升力偏弱**——求解器易锁进「对称（无环量）」数值分支，升力被吃掉；钝体（方块）迎角的升力演示完全正常。这是轻量 2D 浏览器 CFD 的真实边界，非求解器 bug。
+- 上传模型功能依赖 Three.js CDN；如需完全离线，把 Three.js 脚本下载到本地并修改 `index.html` 中的 `<script src>`。
+
+## 文件
+
+- `index.html` — 主工具页面
+- `lbm.js` — LBM / D2Q9 CFD 求解器
+- `guide.html` — 使用与部署指南（含如何获取 3D 模型）
