@@ -144,6 +144,59 @@
             const dx = x - cx, dy = y - cyc;
             if (dx * dx + dy * dy <= r * r) mask[y * w + x] = 1;
           }
+      } else if (kind === 'car') {
+        // 简化车体侧视（Ahmed body 风格）：前缘钝头迎风，后部斜背收尾。
+        // 车长沿 x 方向、车头朝左，来流从左吹即“从前方吹”，正是汽车风洞配置。
+        const L = opts.L || Math.min(w, h) * 0.52;   // 车长
+        const Hh = opts.Hh || Math.min(w, h) * 0.18; // 车高
+        const x0 = w * 0.20;                          // 车头 x（前方留出稳定段）
+        const yc = h / 2;
+        const top = yc - Hh / 2, bot = yc + Hh / 2;
+        const slantLen = L * 0.34;                    // 斜背长度
+        const cutMax = Hh * 0.5;                      // 斜背最大切高
+        const tailStart = x0 + L - slantLen;
+        for (let x = 0; x < w; x++) {
+          for (let y = 0; y < h; y++) {
+            if (x < x0 || x > x0 + L) continue;
+            if (y < top || y > bot) continue;
+            if (x > tailStart) {
+              const tt = (x - tailStart) / slantLen;   // 0..1
+              const cut = cutMax * tt;
+              if (y < top + cut) continue;             // 斜背上方被切掉
+            }
+            mask[y * w + x] = 1;
+          }
+        }
+      } else if (kind === 'car_top') {
+        // 俯视：来流仍从左→右（车头朝左），截面为车顶平面（前圆后尖的梯形）。
+        // 与侧视共用同一“车头迎风”约定，只是观察的是车顶这个面。
+        const L = opts.L || Math.min(w, h) * 0.52;
+        const bw = opts.bw || Math.min(w, h) * 0.22;  // 半宽（车宽方向）
+        const x0 = w * 0.20, yc = h / 2;
+        const slantLen = L * 0.34, tailStart = x0 + L - slantLen;
+        for (let x = 0; x < w; x++) {
+          for (let y = 0; y < h; y++) {
+            if (x < x0 || x > x0 + L) continue;
+            let half = bw;
+            if (x < x0 + L * 0.08) { const t = (x - x0) / (L * 0.08); half = bw * Math.sqrt(Math.max(0, t)); }
+            if (x > tailStart) { const tt = (x - tailStart) / slantLen; half = bw * (1 - 0.5 * tt); }
+            if (Math.abs(y - yc) <= half) mask[y * w + x] = 1;
+          }
+        }
+      } else if (kind === 'car_front') {
+        // 正视：来流从左→右直撞车头迎风面（竖向矩形，高=车宽方向）。
+        // 这是真实风洞里“从正前方吹”的视角，注意来流方向仍固定左→右。
+        const T = opts.T || Math.min(w, h) * 0.16;    // 车头厚度（x 方向）
+        const bw = opts.bw || Math.min(w, h) * 0.26;  // 半高（车宽方向）
+        const x0 = w * 0.40, yc = h / 2;
+        for (let x = 0; x < w; x++) {
+          for (let y = 0; y < h; y++) {
+            if (x < x0 || x > x0 + T) continue;
+            let half = bw;
+            if (x < x0 + T * 0.3) { const t = (x - x0) / (T * 0.3); half = bw * Math.min(1, Math.sqrt(Math.max(0, t))); }
+            if (Math.abs(y - yc) <= half) mask[y * w + x] = 1;
+          }
+        }
       }
       return mask;
     }
@@ -265,6 +318,31 @@
       }
     }
 
+    /** 出口缓冲（sponge zone）：最右 15% 网格把流场平滑松弛回自由来流，
+     *  吸收下游扰动，消除开放边界的数值反射（避免流场右端出现“气流反弹”伪影）。 */
+    _sponge() {
+      const { w, h, rho0, u0, mask, f } = this;
+      const x0 = Math.floor(w * 0.85);
+      if (x0 >= w - 2) return;
+      for (let x = x0; x < w; x++) {
+        const k = 0.06 * (x - x0) / (w - 1 - x0); // 越靠右吸收越强
+        for (let y = 0; y < h; y++) {
+          const idx = y * w + x;
+          if (mask[idx]) continue;
+          let ux = this.ux[idx], uy = this.uy[idx], r = this.rho[idx];
+          ux += k * (u0 - ux);
+          uy += k * (0 - uy);
+          r  += k * (rho0 - r);
+          this.ux[idx] = ux; this.uy[idx] = uy; this.rho[idx] = r;
+          const u2 = ux * ux + uy * uy;
+          for (let i = 0; i < 9; i++) {
+            const cu = CX[i] * ux + CY[i] * uy;
+            f[i][idx] = W[i] * r * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * u2);
+          }
+        }
+      }
+    }
+
     /** 计算涡量（可视化用） */
     _computeCurl() {
       const { w, h, ux, uy, curl } = this;
@@ -284,6 +362,7 @@
       this._computeForce();   // 读碰撞后流体分布 + 上一步固体节点存的反弹量
       this._stream();         // 更新流体入射分布，并把反弹量写入固体节点供下一步
       this._applyBC();
+      this._sponge();        // 出口缓冲：吸收下游反射，避免流场右端“气流反弹”伪影
       this._computeCurl();
       this.stepCount++;
 

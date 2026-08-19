@@ -59,6 +59,7 @@
     <div class="group">
       <label>选择模型来源</label>
       <select id="srcSel">
+        <option value="car" selected>示例 · 汽车车身（风洞）</option>
         <option value="cylinder">示例 · 圆柱</option>
         <option value="square">示例 · 方块</option>
         <option value="airfoil">示例 · 对称翼型</option>
@@ -81,7 +82,7 @@
         <button id="btnExtract">提取轮廓 → 风洞</button>
       </div>
       <canvas id="modelView" height="200" style="margin-top:8px;height:200px;"></canvas>
-      <div class="note">用免费站（Tripo / Meshy / Luma / Rodin）把实物扫成 GLB，上传后选视角提取正面剪影即为绕流障碍物。</div>
+      <div class="note">上传车模型后，用 <b>侧面 / 正面 / 俯视</b> 选观察面。无论选哪个，来流都 <b>从车头吹向车尾（左→右固定）</b>——这就是真实汽车风洞视角，吹向不变。来流方向见流场左侧橙色箭头。示例车身也可用上方「观察视角」切换侧视/俯视/正视。</div>
     </div>
 
     <h2>② 仿真参数</h2>
@@ -116,6 +117,13 @@
         <option value="speed">速度大小</option>
         <option value="vorticity">涡量（涡旋）</option>
       </select>
+      <label style="margin-top:10px;" id="obsLbl">观察视角（车头始终迎风）</label>
+      <select id="observe">
+        <option value="side" selected>侧视 · 车身侧面（默认）</option>
+        <option value="top">俯视 · 车顶平面</option>
+        <option value="front">正视 · 车头迎风面</option>
+      </select>
+      <div class="note" id="obsNote">切换观察面时，来流方向 <b>始终从左吹向右（车头迎风）</b>，不会变。你看到的是物体不同截面的绕流形态。圆柱等对称体各视角截面相同，切换无差异。</div>
       <label class="chk"><input type="checkbox" id="tgVec" checked /> 速度矢量</label>
       <label class="chk"><input type="checkbox" id="tgPart" checked /> 流线 / 粒子动画</label>
     </div>
@@ -175,21 +183,26 @@
   // ---------- 全局状态 ----------
   const S = {
     wt: null, W: 300, H: 120, running: false, raf: 0,
-    src: 'cylinder', re: 100, spf: 6,
+    src: 'car', re: 100, spf: 6, observe: 'side',
     base: 'pressure', showVec: true, showPart: true,
     particles: [], cdHist: [], clHist: [], tHist: [], lastT: 0, fps: 0,
     modelGroup: null, yaw: 0, viewAngle: 'front', alpha: 0
   };
 
   const $ = id => document.getElementById(id);
-  const sim = $('sim'), sctx = sim.getContext('2d');
+  const sim = $('sim');
+  const off = document.createElement('canvas');   // 离屏：render 先画到这里
+  const sctx = off.getContext('2d');
+  const mctx = sim.getContext('2d');               // 主画布：按视角旋转后贴图
   const chart = $('chart'), cctx = chart.getContext('2d');
 
   // ---------- 网格尺寸同步 ----------
   function sizeCanvases(){
     const dpr = Math.min(window.devicePixelRatio||1, 2);
-    // 流场画布 1:1（putImageData 忽略变换，避免在 DPR 下错位）
+    // 离屏画布固定为网格尺寸（1:1），render 先画到这里
+    off.width = S.W; off.height = S.H;
     sim.width = S.W; sim.height = S.H;
+    sim.style.aspectRatio = S.W / S.H;
     chart.width = chart.clientWidth * dpr; chart.height = 160 * dpr;
     cctx.setTransform(dpr,0,0,dpr,0,0);
   }
@@ -220,15 +233,27 @@
     }
     return Math.max(1, maxX-minX+1);
   }
+  function ySpan(mask, W, H){ // 垂直来流方向（y）投影跨度，车头正视时作参考长度
+    let minY=H, maxY=-1;
+    for (let y=0;y<H;y++){
+      for (let x=0;x<W;x++){ if(mask[y*W+x]){ if(y<minY)minY=y; if(y>maxY)maxY=y; break; } }
+    }
+    return Math.max(1, maxY-minY+1);
+  }
   function buildMask(){
-    let base;
+    let base, kind = S.src;
+    if (S.src === 'car'){       // 示例车身：按观察视角取不同真实 2D 截面，来流始终左→右
+      kind = S.observe === 'top' ? 'car_top' : S.observe === 'front' ? 'car_front' : 'car';
+    }
     if (S.src === 'upload'){
       if (S.modelGroup) base = extractSilhouette();
       else base = LBM.WindTunnel.shapeMask(S.W, S.H, 'cylinder', { r: Math.min(S.W,S.H)*0.14 });
     } else {
-      base = LBM.WindTunnel.shapeMask(S.W, S.H, S.src, { r: Math.min(S.W,S.H)*0.14 });
+      base = LBM.WindTunnel.shapeMask(S.W, S.H, kind, { r: Math.min(S.W,S.H)*0.14 });
     }
-    const refLen = xSpan(base, S.W, S.H); // 参考长度锁定为未旋转时的弦长/直径，攻角下保持不变
+    // 参考长度：默认取沿来流投影(xSpan)；车头正视用垂直来流投影(ySpan=迎风高度)，避免分母过小使 Cd 爆炸
+    let refLen = xSpan(base, S.W, S.H);
+    if (kind === 'car_front') refLen = ySpan(base, S.W, S.H);
     return { mask: rotateMask(base, S.W, S.H, S.alpha), refLen };
   }
 
@@ -267,6 +292,13 @@
   }
 
   // ---------- 渲染流场 ----------
+  // ---------- 贴图（视图固定，不旋转，来流始终左→右） ----------
+  function blit(){
+    mctx.setTransform(1,0,0,1,0,0);
+    mctx.clearRect(0,0,sim.width,sim.height);
+    mctx.drawImage(off, 0, 0);
+  }
+
   function render(){
     const wt = S.wt; if (!wt) return;
     const W=wt.w, H=wt.h, rho=wt.rho, ux=wt.ux, uy=wt.uy, curl=wt.curl, mask=wt.mask;
@@ -321,6 +353,20 @@
         sctx.fillRect(pt.x, pt.y, 1.2, 1.2);
       }
     }
+    // 来流方向标注（汽车风洞：从左向右吹，撞物体迎风面）
+    sctx.save();
+    sctx.fillStyle = 'rgba(255,180,84,0.95)';
+    sctx.font = 'bold 12px sans-serif';
+    sctx.fillText('来流 U∞ →', 4, 13);
+    const ax = 6, ay = H * 0.5, al = 24;
+    sctx.strokeStyle = 'rgba(255,180,84,0.95)'; sctx.lineWidth = 1.6;
+    sctx.beginPath(); sctx.moveTo(ax, ay); sctx.lineTo(ax + al, ay); sctx.stroke();
+    sctx.beginPath();
+    sctx.moveTo(ax + al, ay); sctx.lineTo(ax + al - 6, ay - 4);
+    sctx.lineTo(ax + al - 6, ay + 4); sctx.closePath();
+    sctx.fillStyle = 'rgba(255,180,84,0.95)'; sctx.fill();
+    sctx.restore();
+    blit();   // 按所选视角把离屏画面旋转贴回主画布
   }
 
   function advectParticles(){
@@ -517,6 +563,10 @@
       const isUp = (S.src==='upload');
       $('modelCtl').style.display = isUp?'block':'none';
       $('fileInput').style.display = isUp?'block':'none';
+      const carObs = (S.src==='car');
+      $('obsLbl').style.display = carObs?'block':'none';
+      $('observe').style.display = carObs?'inline-block':'none';
+      $('obsNote').style.display = carObs?'block':'none';
       if (!isUp && S.modelGroup){ scene.remove(S.modelGroup); S.modelGroup=null; }
       initSim();
     });
@@ -535,6 +585,7 @@
         ? 'linear-gradient(90deg,#003cff,#ffffff,#ff3c3c)' : 'linear-gradient(90deg,#0000ff,#00ffff,#00ff00,#ffff00,#ff0000)';
       render();
     });
+    $('observe').addEventListener('change', e=>{ S.observe=e.target.value; initSim(); });
     $('tgVec').addEventListener('change', e=>{ S.showVec=e.target.checked; render(); });
     $('tgPart').addEventListener('change', e=>{ S.showPart=e.target.checked; render(); });
     $('btnStart').addEventListener('click', ()=>{ if(!S.wt) initSim(); S.running=true; S.lastT=0; loop(); });
