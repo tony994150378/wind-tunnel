@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>云端风洞测试工具 · Web Wind Tunnel</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel2: #1c232c; --line: #2b333d;
+    --txt: #e6edf3; --muted: #9aa7b4; --accent: #4cc2ff; --accent2: #ffb454;
+    --good: #3fd07f; --warn: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt);
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 14px; }
+  header { padding: 12px 18px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .layout { display: grid; grid-template-columns: 280px 1fr 300px; gap: 12px; padding: 12px; }
+  @media (max-width: 1100px){ .layout { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .panel h2 { font-size: 13px; margin: 0 0 10px; color: var(--accent); letter-spacing: .5px; }
+  .group { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  select, input[type=range] { width: 100%; }
+  select { background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px; }
+  input[type=range] { accent-color: var(--accent); }
+  .val { color: var(--accent2); font-variant-numeric: tabular-nums; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { background: var(--accent); color: #05121c; border: 0; border-radius: 6px;
+    padding: 8px 12px; font-weight: 600; cursor: pointer; }
+  button.sec { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt); margin: 4px 0; }
+  canvas { display: block; background: #05080c; border-radius: 8px; width: 100%; }
+  #simWrap { position: relative; }
+  #sim { aspect-ratio: 2.5 / 1; }
+  .stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .bar { height: 10px; flex: 1; border-radius: 4px; }
+  .note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  a { color: var(--accent); }
+  .pill { display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius: 999px; padding:2px 8px; font-size:11px; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌬️ 云端风洞测试工具</h1>
+  <span class="sub">浏览器内真实 CFD（格子玻尔兹曼 LBM/D2Q9）· 免费 · 无需安装</span>
+</header>
+
+<div class="layout">
+  <!-- 左：控制面板 -->
+  <div class="panel">
+    <h2>① 测试物体</h2>
+    <div class="group">
+      <label>选择模型来源</label>
+      <select id="srcSel">
+        <option value="cylinder">示例 · 圆柱</option>
+        <option value="square">示例 · 方块</option>
+        <option value="airfoil">示例 · 对称翼型</option>
+        <option value="sphere">示例 · 球体(截面)</option>
+        <option value="upload">📁 上传 3D 模型 (GLB/OBJ)</option>
+      </select>
+      <input type="file" id="fileInput" accept=".glb,.gltf,.obj" style="display:none;margin-top:8px;" />
+    </div>
+
+    <div id="modelCtl" class="group" style="display:none;">
+      <label>视角</label>
+      <select id="viewAngle">
+        <option value="front">正面（迎风）</option>
+        <option value="side">侧面</option>
+        <option value="top">俯视</option>
+      </select>
+      <label style="margin-top:8px;">偏航旋转 <span class="val" id="yawVal">0°</span></label>
+      <input type="range" id="yaw" min="-180" max="180" value="0" />
+      <div class="btns" style="margin-top:8px;">
+        <button id="btnExtract">提取轮廓 → 风洞</button>
+      </div>
+      <canvas id="modelView" height="200" style="margin-top:8px;height:200px;"></canvas>
+      <div class="note">用免费站（Tripo / Meshy / Luma / Rodin）把实物扫成 GLB，上传后选视角提取正面剪影即为绕流障碍物。</div>
+    </div>
+
+    <h2>② 仿真参数</h2>
+    <div class="group">
+      <label>雷诺数 Re <span class="val" id="reVal">100</span></label>
+      <input type="range" id="re" min="10" max="400" value="100" />
+      <div class="note">实际可达 Re 受模型厚度与稳定性限制，见右下读数。</div>
+    </div>
+    <div class="group">
+      <label>攻角 α（来流迎角） <span class="val" id="alphaVal">0°</span></label>
+      <input type="range" id="alpha" min="-30" max="30" value="0" />
+      <div class="note">物体相对来流的迎角。钝体（方块）迎角下升力明显（Cl 可达 1 左右）；流线型薄翼型在当前网格/低 Re 下升力偏弱（求解器易锁进对称分支），属数值限制，建议用最细网格 + 高 Re。</div>
+    </div>
+    <div class="group">
+      <label>网格分辨率</label>
+      <select id="gridSel">
+        <option value="240x96">240 × 96（快）</option>
+        <option value="300x120" selected>300 × 120（均衡）</option>
+        <option value="400x160">400 × 160（精但慢）</option>
+      </select>
+    </div>
+    <div class="group">
+      <label>每帧推演步数 <span class="val" id="spfVal">6</span></label>
+      <input type="range" id="spf" min="1" max="20" value="6" />
+    </div>
+
+    <h2>③ 显示</h2>
+    <div class="group">
+      <label>底层云图</label>
+      <select id="baseSel">
+        <option value="pressure" selected>压力分布</option>
+        <option value="speed">速度大小</option>
+        <option value="vorticity">涡量（涡旋）</option>
+      </select>
+      <label class="chk"><input type="checkbox" id="tgVec" checked /> 速度矢量</label>
+      <label class="chk"><input type="checkbox" id="tgPart" checked /> 流线 / 粒子动画</label>
+    </div>
+
+    <div class="btns">
+      <button id="btnStart">▶ 开始</button>
+      <button id="btnPause" class="sec">⏸ 暂停</button>
+      <button id="btnReset" class="sec">↺ 重置</button>
+    </div>
+    <div class="btns" style="margin-top:8px;">
+      <button id="btnCsv" class="sec">⬇ 导出 Cd/Cl 数据 (CSV)</button>
+    </div>
+    <div class="note" style="margin-top:10px;">
+      想了解如何获取模型与部署？见 <a href="guide.html" target="_blank">使用指南 →</a>
+    </div>
+  </div>
+
+  <!-- 中：流场 -->
+  <div class="panel">
+    <h2>流场可视化</h2>
+    <div id="simWrap"><canvas id="sim"></canvas></div>
+    <div class="legend">
+      <span id="legLow">低</span>
+      <div class="bar" id="legBar"></div>
+      <span id="legHigh">高</span>
+      <span id="legName" style="margin-left:8px;">压力</span>
+    </div>
+  </div>
+
+  <!-- 右：数据 -->
+  <div class="panel">
+    <h2>气动系数</h2>
+    <div class="stat"><span>阻力系数 Cd</span><b id="cdVal" class="val">—</b></div>
+    <div class="stat"><span>升力系数 Cl</span><b id="clVal" class="val">—</b></div>
+    <div class="stat"><span>目标 / 实际 Re</span><b id="reNow" class="val">—</b></div>
+    <div class="stat"><span>时均阻力 Cd̄</span><b id="cdMean" class="val">—</b></div>
+    <div class="stat"><span>时均升力 Cl̄</span><b id="clMean" class="val">—</b></div>
+    <div class="stat"><span>推演步数</span><b id="stepVal" class="val">0</b></div>
+    <div class="stat"><span>帧率 FPS</span><b id="fpsVal" class="val">—</b></div>
+    <h2 style="margin-top:14px;">Cd / Cl 时间曲线</h2>
+    <canvas id="chart" height="160" style="height:160px;"></canvas>
+    <div class="note" style="margin-top:8px;">
+      Cd = 阻力/(½ρU²A)，Cl = 升力/(½ρU²A)，A 取物体投影高度。升力对对称物体绕零振荡即卡门涡街。
+    </div>
+  </div>
+</div>
+
+<!-- 依赖（经典脚本，离线时仅模型上传不可用，CFD 仿真不受影响） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="lbm.js"></script>
+
+<script>
+(function(){
+  'use strict';
+  // ---------- 全局状态 ----------
+  const S = {
+    wt: null, W: 300, H: 120, running: false, raf: 0,
+    src: 'cylinder', re: 100, spf: 6,
+    base: 'pressure', showVec: true, showPart: true,
+    particles: [], cdHist: [], clHist: [], tHist: [], lastT: 0, fps: 0,
+    modelGroup: null, yaw: 0, viewAngle: 'front', alpha: 0
+  };
+
+  const $ = id => document.getElementById(id);
+  const sim = $('sim'), sctx = sim.getContext('2d');
+  const chart = $('chart'), cctx = chart.getContext('2d');
+
+  // ---------- 网格尺寸同步 ----------
+  function sizeCanvases(){
+    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    // 流场画布 1:1（putImageData 忽略变换，避免在 DPR 下错位）
+    sim.width = S.W; sim.height = S.H;
+    chart.width = chart.clientWidth * dpr; chart.height = 160 * dpr;
+    cctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  // ---------- 掩膜旋转（攻角） ----------
+  // 绕域中心将障碍物掩膜旋转 deg 度（屏幕坐标系，y 向下），最近邻采样。
+  function rotateMask(base, W, H, deg){
+    if (!deg) return base;
+    const out = new Uint8Array(W*H);
+    const a = deg*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+    const cx=(W-1)/2, cy=(H-1)/2;
+    for (let y=0;y<H;y++){
+      for (let x=0;x<W;x++){
+        const dx=x-cx, dy=y-cy;
+        const sx=Math.round(cx + dx*ca + dy*sa);
+        const sy=Math.round(cy - dx*sa + dy*ca);
+        if (sx>=0&&sx<W&&sy>=0&&sy<H && base[sy*W+sx]) out[y*W+x]=1;
+      }
+    }
+    return out;
+  }
+
+  // ---------- 初始化仿真 ----------
+  function xSpan(mask, W, H){
+    let minX=W, maxX=-1;
+    for (let x=0;x<W;x++){
+      for (let y=0;y<H;y++){ if(mask[y*W+x]){ if(x<minX)minX=x; if(x>maxX)maxX=x; break; } }
+    }
+    return Math.max(1, maxX-minX+1);
+  }
+  function buildMask(){
+    let base;
+    if (S.src === 'upload'){
+      if (S.modelGroup) base = extractSilhouette();
+      else base = LBM.WindTunnel.shapeMask(S.W, S.H, 'cylinder', { r: Math.min(S.W,S.H)*0.14 });
+    } else {
+      base = LBM.WindTunnel.shapeMask(S.W, S.H, S.src, { r: Math.min(S.W,S.H)*0.14 });
+    }
+    const refLen = xSpan(base, S.W, S.H); // 参考长度锁定为未旋转时的弦长/直径，攻角下保持不变
+    return { mask: rotateMask(base, S.W, S.H, S.alpha), refLen };
+  }
+
+  function initSim(){
+    cancelAnimationFrame(S.raf); S.running = false;
+    const { mask, refLen } = buildMask();
+    S.wt = new LBM.WindTunnel(S.W, S.H, { u0: 0.1, re: S.re });
+    S.wt.setObstacle(mask, refLen);
+    S.wt.setRe(S.re);
+    S.cdHist = []; S.clHist = []; S.tHist = []; S.particles = [];
+    resetParticles();
+    updateReadouts();
+    render();
+  }
+
+  function resetParticles(){
+    S.particles = [];
+    const n = Math.floor(S.W * S.H / 40);
+    for (let i=0;i<n;i++){
+      S.particles.push({ x: Math.random()*S.W, y: Math.random()*S.H });
+    }
+  }
+
+  // ---------- 颜色映射 ----------
+  function jet(t){ // t∈[0,1] → [r,g,b]
+    t = Math.max(0, Math.min(1, t));
+    const r = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-3)));
+    const g = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-2)));
+    const b = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-1)));
+    return [r*255|0, g*255|0, b*255|0];
+  }
+  function div(t){ // 发散：蓝-白-红，t∈[-1,1]
+    t = Math.max(-1, Math.min(1, t));
+    if (t<0){ const k=-t; return [ (255*(1-k)+60*k)|0, (255*(1-k)+120*k)|0, 255 ]; }
+    const k=t; return [ 255, (255*(1-k)+120*k)|0, (255*(1-k)+60*k)|0 ];
+  }
+
+  // ---------- 渲染流场 ----------
+  function render(){
+    const wt = S.wt; if (!wt) return;
+    const W=wt.w, H=wt.h, rho=wt.rho, ux=wt.ux, uy=wt.uy, curl=wt.curl, mask=wt.mask;
+    const img = sctx.createImageData(W, H);
+    const data = img.data;
+
+    // 计算极值用于归一化
+    let pmax=1e-6, smax=1e-6, vmax=1e-6;
+    for (let i=0;i<W*H;i++){
+      const dev = rho[i]-wt.rho0;
+      if (Math.abs(dev)>pmax) pmax=Math.abs(dev);
+      const sp = Math.hypot(ux[i], uy[i]); if (sp>smax) smax=sp;
+      const c = Math.abs(curl[i]); if (c>vmax) vmax=c;
+    }
+
+    for (let y=0;y<H;y++){
+      for (let x=0;x<W;x++){
+        const i = y*W+x, p = (y*W+x)*4;
+        let col;
+        if (mask[i]){ col = [40,46,54]; }
+        else if (S.base==='pressure'){ col = div((rho[i]-wt.rho0)/pmax); }
+        else if (S.base==='speed'){ col = jet(Math.hypot(ux[i],uy[i])/smax); }
+        else { col = div(curl[i]/vmax); }
+        data[p]=col[0]; data[p+1]=col[1]; data[p+2]=col[2]; data[p+3]=255;
+      }
+    }
+    sctx.putImageData(img, 0, 0);
+
+    // 障碍物描边（深色）
+    sctx.fillStyle = 'rgba(20,24,30,0.9)';
+    // 速度矢量
+    if (S.showVec){
+      sctx.strokeStyle = 'rgba(230,240,255,0.55)'; sctx.lineWidth = 0.6;
+      const step = 8;
+      for (let y=step/2;y<H;y+=step){
+        for (let x=step/2;x<W;x+=step){
+          const i=((y|0)*W+(x|0));
+          if (mask[i]) continue;
+          const vx=ux[i], vy=uy[i]; const m=Math.hypot(vx,vy); if (m<1e-4) continue;
+          const L = Math.min(step*0.9, m*step*9);
+          const ex=x+vx/m*L, ey=y+vy/m*L;
+          sctx.beginPath(); sctx.moveTo(x,y); sctx.lineTo(ex,ey); sctx.stroke();
+        }
+      }
+    }
+    // 粒子（流线动画）
+    if (S.showPart){
+      sctx.fillStyle = 'rgba(120,220,255,0.9)';
+      for (const pt of S.particles){
+        const gx=pt.x|0, gy=pt.y|0;
+        if (gx<0||gx>=W||gy<0||gy>=H) continue;
+        sctx.fillRect(pt.x, pt.y, 1.2, 1.2);
+      }
+    }
+  }
+
+  function advectParticles(){
+    const wt=S.wt; if(!wt) return;
+    const W=wt.w, H=wt.h, ux=wt.ux, uy=wt.uy, mask=wt.mask;
+    for (const pt of S.particles){
+      const gx=pt.x|0, gy=pt.y|0;
+      if (gx<0||gx>=W||gy<0||gy>=H||mask[gy*W+gx]){
+        pt.x = 0; pt.y = Math.random()*H; continue;
+      }
+      pt.x += ux[gy*W+gx]*S.spf*1.0;
+      pt.y += uy[gy*W+gx]*S.spf*1.0;
+      if (pt.x>=W){ pt.x=0; pt.y=Math.random()*H; }
+      if (pt.y<0) pt.y=0; if (pt.y>=H) pt.y=H-1;
+    }
+  }
+
+  // ---------- 主循环 ----------
+  function loop(){
+    if (!S.running) return;
+    const t0=performance.now();
+    for (let k=0;k<S.spf;k++) S.wt.step();
+    advectParticles();
+    render();
+      const now=performance.now();
+      const dt = now - (S.lastT||now); S.lastT=now;
+      S.fps = dt>0 ? Math.round(1000/dt) : 0;
+    updateReadouts();
+    pushHistory();
+    drawChart();
+    S.raf = requestAnimationFrame(loop);
+  }
+
+  function updateReadouts(){
+    const wt=S.wt; if(!wt) return;
+    $('cdVal').textContent = wt.cd.toFixed(3);
+    $('clVal').textContent = wt.cl.toFixed(3);
+    // 时均 Cd/Cl（最近一段窗口，剔除瞬态涡街抖动，给出稳态读数）
+    const n = S.cdHist.length;
+    if (n >= 2){
+      const k = Math.min(n, 200);
+      let sc=0, sl=0;
+      for (let i=n-k;i<n;i++){ sc += S.cdHist[i]; sl += S.clHist[i]; }
+      $('cdMean').textContent = (sc/k).toFixed(3);
+      $('clMean').textContent = (sl/k).toFixed(3);
+    }
+    // 实际 Re = u0*L/nu
+    const reAct = (wt.u0*wt.charLength/wt.nu);
+    $('reNow').textContent = S.re + ' / ' + reAct.toFixed(0);
+    $('stepVal').textContent = wt.stepCount;
+    $('fpsVal').textContent = S.fps || '—';
+  }
+  function pushHistory(){
+    const wt=S.wt; if(!wt) return;
+    S.cdHist.push(wt.cd); S.clHist.push(wt.cl); S.tHist.push(wt.stepCount);
+    if (S.cdHist.length>400){ S.cdHist.shift(); S.clHist.shift(); S.tHist.shift(); }
+  }
+  function exportCsv(){
+    if (S.cdHist.length < 2){ alert('请先运行仿真，再导出数据。'); return; }
+    const lines = ['step,Cd,Cl'];
+    for (let i=0;i<S.cdHist.length;i++)
+      lines.push((S.tHist[i] ?? i) + ',' + S.cdHist[i].toFixed(5) + ',' + S.clHist[i].toFixed(5));
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const tag = `${S.src}_Re${S.re}_a${S.alpha}`;
+    a.href = url; a.download = `windtunnel_${tag}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function drawChart(){
+    const w=chart.clientWidth, h=160; cctx.clearRect(0,0,w,h);
+    cctx.fillStyle='#0b0f14'; cctx.fillRect(0,0,w,h);
+    const n=S.cdHist.length; if(n<2) return;
+    let mx=1e-6; for (let i=0;i<n;i++){ mx=Math.max(mx, Math.abs(S.cdHist[i]), Math.abs(S.clHist[i])); }
+    mx*=1.15;
+    const mid=h/2;
+    cctx.strokeStyle='#2b333d'; cctx.beginPath(); cctx.moveTo(0,mid); cctx.lineTo(w,mid); cctx.stroke();
+    const line=(arr,color)=>{
+      cctx.strokeStyle=color; cctx.lineWidth=1.4; cctx.beginPath();
+      for (let i=0;i<n;i++){
+        const x=i/(n-1)*w, y=mid - arr[i]/mx*(mid-6);
+        i?cctx.lineTo(x,y):cctx.moveTo(x,y);
+      }
+      cctx.stroke();
+    };
+    line(S.cdHist,'#ffb454'); line(S.clHist,'#4cc2ff');
+    cctx.fillStyle='#ffb454'; cctx.fillText('Cd', 6, 14);
+    cctx.fillStyle='#4cc2ff'; cctx.fillText('Cl', 30, 14);
+  }
+
+  // ---------- 3D 模型（剪影提取） ----------
+  let renderer, scene, camera, gltfLoader, objLoader;
+  function sizeModelView(){
+    if (!renderer) return;
+    const mw=280, mh=Math.round(mw*S.H/S.W); // 与网格纵横比一致
+    renderer.setSize(mw, mh, false);
+    $('modelView').style.height = mh+'px';
+  }
+  function initThree(){
+    if (typeof THREE==='undefined') return false;
+    try {
+      const mv=$('modelView');
+      renderer=new THREE.WebGLRenderer({canvas:mv, antialias:true, alpha:false});
+      sizeModelView();
+      scene=new THREE.Scene(); scene.background=new THREE.Color(0xffffff);
+      camera=new THREE.OrthographicCamera(-1,1,1,-1,0.1,100);
+      camera.position.set(0,0,10); camera.lookAt(0,0,0);
+      scene.add(new THREE.AmbientLight(0xffffff,0.9));
+      const d=new THREE.DirectionalLight(0xffffff,0.6); d.position.set(3,5,8); scene.add(d);
+      gltfLoader=new THREE.GLTFLoader(); objLoader=new THREE.OBJLoader();
+      return true;
+    } catch(e){ console.warn('Three.js 初始化失败（WebGL 不可用），上传模型功能关闭：', e); return false; }
+  }
+
+  function placeModel(obj){
+    if (S.modelGroup){ try{ scene.remove(S.modelGroup); }catch(e){} }
+    // 居中并缩放到合适大小
+    const box=new THREE.Box3().setFromObject(obj);
+    const c=box.getCenter(new THREE.Vector3());
+    const size=box.getSize(new THREE.Vector3());
+    const maxd=Math.max(size.x,size.y,size.z)||1;
+    const s=2.2/maxd;
+    obj.position.sub(c); obj.scale.setScalar(s);
+    const g=new THREE.Group(); g.add(obj);
+    S.modelGroup=g; scene.add(g);
+    fitCamera();
+    renderModelView();
+  }
+
+  function fitCamera(){
+    const aspect=S.W/S.H;
+    const h=1.5; // 半高（世界单位）
+    camera.left=-h*aspect; camera.right=h*aspect; camera.top=h; camera.bottom=-h;
+    camera.updateProjectionMatrix();
+  }
+
+  function applyOrientation(){
+    if (!S.modelGroup) return;
+    const yaw=S.yaw*Math.PI/180;
+    S.modelGroup.rotation.set(0,0,0);
+    if (S.viewAngle==='side') S.modelGroup.rotation.y=Math.PI/2;
+    else if (S.viewAngle==='top'){ S.modelGroup.rotation.x=Math.PI/2; }
+    S.modelGroup.rotation.y += yaw;
+    renderModelView();
+  }
+
+  function renderModelView(){
+    if (!renderer||!S.modelGroup) return;
+    renderer.render(scene,camera);
+  }
+
+  // 渲染到离屏画布提取剪影
+  function extractSilhouette(){
+    const W=S.W, H=S.H;
+    // 强制黑色实体 + 白底，保证干净二值化
+    const prevMat=scene.overrideMaterial;
+    scene.overrideMaterial=new THREE.MeshBasicMaterial({color:0x000000});
+    const r2=new THREE.WebGLRenderTarget(W,H);
+    const prev=renderer.getRenderTarget();
+    renderer.setRenderTarget(r2); renderer.render(scene,camera);
+    renderer.setRenderTarget(prev);
+    scene.overrideMaterial=prevMat;
+    // 读像素
+    const buf=new Uint8Array(W*H*4);
+    renderer.readRenderTargetPixels(r2,0,0,W,H,buf);
+    r2.dispose();
+    const mask=new Uint8Array(W*H);
+    for (let i=0;i<W*H;i++){
+      const p=i*4; const lum=(buf[p]+buf[p+1]+buf[p+2])/3;
+      const x=i%W, yb=Math.floor(i/W), y=H-1-yb; // WebGL 原点在左下，掩膜原点在左上
+      mask[y*W+x]= lum<200 ? 1:0; // 非白即实体
+    }
+    return mask;
+  }
+
+  function loadFile(file){
+    const name=file.name.toLowerCase();
+    const done=(obj)=>{ placeModel(obj); $('modelCtl').style.display='block'; applyOrientation(); };
+    if (name.endsWith('.obj')){
+      const r=new FileReader(); r.onload=()=>{ try{ done(objLoader.parse(r.result)); }catch(e){ alert('OBJ 解析失败：'+e.message); } }; r.readAsText(file);
+    } else {
+      const r=new FileReader(); r.onload=()=>{
+        try{ gltfLoader.parse(r.result, '', (g)=>done(g.scene), (e)=>alert('GLB 解析失败：'+e)); }
+        catch(e){ alert('GLB 解析失败：'+e.message); }
+      }; r.readAsArrayBuffer(file);
+    }
+  }
+
+  // ---------- 事件绑定 ----------
+  function bind(){
+    $('srcSel').addEventListener('change', e=>{
+      S.src=e.target.value;
+      const isUp = (S.src==='upload');
+      $('modelCtl').style.display = isUp?'block':'none';
+      $('fileInput').style.display = isUp?'block':'none';
+      if (!isUp && S.modelGroup){ scene.remove(S.modelGroup); S.modelGroup=null; }
+      initSim();
+    });
+    $('fileInput').addEventListener('change', e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+    $('re').addEventListener('input', e=>{ S.re=+e.target.value; $('reVal').textContent=S.re; if(S.wt){ S.wt.setRe(S.re); } });
+    $('alpha').addEventListener('input', e=>{
+      S.alpha=+e.target.value; $('alphaVal').textContent=S.alpha+'°';
+      const was=S.running; initSim();
+      if (was){ S.running=true; S.lastT=0; loop(); } // 改几何后保持运行，便于扫攻角
+    });
+    $('spf').addEventListener('input', e=>{ S.spf=+e.target.value; $('spfVal').textContent=S.spf; });
+    $('gridSel').addEventListener('change', e=>{ const [w,h]=e.target.value.split('x').map(Number); S.W=w; S.H=h; sizeCanvases(); sizeModelView(); fitCamera(); initSim(); });
+    $('baseSel').addEventListener('change', e=>{ S.base=e.target.value;
+      $('legName').textContent = S.base==='pressure'?'压力':(S.base==='speed'?'速度':'涡量');
+      const g=$('legBar'); g.style.background = S.base==='vorticity'||S.base==='pressure'
+        ? 'linear-gradient(90deg,#003cff,#ffffff,#ff3c3c)' : 'linear-gradient(90deg,#0000ff,#00ffff,#00ff00,#ffff00,#ff0000)';
+      render();
+    });
+    $('tgVec').addEventListener('change', e=>{ S.showVec=e.target.checked; render(); });
+    $('tgPart').addEventListener('change', e=>{ S.showPart=e.target.checked; render(); });
+    $('btnStart').addEventListener('click', ()=>{ if(!S.wt) initSim(); S.running=true; S.lastT=0; loop(); });
+    $('btnPause').addEventListener('click', ()=>{ S.running=false; cancelAnimationFrame(S.raf); });
+    $('btnReset').addEventListener('click', ()=>{ initSim(); });
+    $('btnCsv').addEventListener('click', exportCsv);
+    $('viewAngle').addEventListener('change', e=>{ S.viewAngle=e.target.value; applyOrientation(); });
+    $('yaw').addEventListener('input', e=>{ S.yaw=+e.target.value; $('yawVal').textContent=S.yaw+'°'; applyOrientation(); });
+    $('btnExtract').addEventListener('click', ()=>{ if(S.modelGroup){ initSim(); } });
+  }
+
+  // ---------- 启动 ----------
+  function boot(){
+    const [w,h]=$('gridSel').value.split('x').map(Number); S.W=w; S.H=h;
+    sizeCanvases();
+    bind();
+    const ok=initThree();
+    if(!ok){ $('modelCtl').querySelector('.note').textContent='（未加载 Three.js，上传模型功能需联网；示例形状不受影响）'; }
+    $('fileInput').style.display='none';
+    initSim();
+    // 图例初始
+    const g=$('legBar'); g.style.background='linear-gradient(90deg,#003cff,#ffffff,#ff3c3c)';
+  }
+  window.addEventListener('load', boot);
+})();
+</script>
+</body>
+</html>

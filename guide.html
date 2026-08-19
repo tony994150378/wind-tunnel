@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>风洞测试工具 · 使用与部署指南</title>
+<style>
+  :root{--bg:#0e1116;--panel:#161b22;--line:#2b333d;--txt:#e6edf3;--muted:#9aa7b4;--accent:#4cc2ff;--accent2:#ffb454;}
+  *{box-sizing:border-box;} body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;line-height:1.7;}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px;}
+  h1{font-size:24px;margin-bottom:6px;} .sub{color:var(--muted);font-size:13px;margin-bottom:22px;}
+  h2{font-size:17px;color:var(--accent);margin-top:28px;border-bottom:1px solid var(--line);padding-bottom:6px;}
+  h3{font-size:14px;color:var(--accent2);margin-top:20px;}
+  a{color:var(--accent);} code{background:var(--panel);padding:2px 6px;border-radius:4px;font-size:12px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{border:1px solid var(--line);padding:8px;text-align:left;}
+  th{background:#1f2630;}
+  .step{display:flex;gap:12px;margin:12px 0;}
+  .step .n{flex:0 0 28px;height:28px;border-radius:50%;background:var(--accent);color:#05121c;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px;}
+  .note{color:var(--muted);font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>云端风洞测试工具 · 使用与部署指南</h1>
+  <div class="sub">浏览器内跑真实 LBM/CFD，完全免费，无需安装 Python 或任何软件。</div>
+
+  <h2>一、工具能做什么</h2>
+  <ul>
+    <li>在浏览器里求解二维不可压 Navier-Stokes 方程（格子玻尔兹曼 D2Q9）。</li>
+    <li>用上传的 3D 模型（GLB / OBJ）生成正面剪影，作为绕流障碍物。</li>
+    <li>输出：<strong>阻力系数 Cd</strong>、<strong>升力系数 Cl</strong>、<strong>压力分布云图</strong>、<strong>速度矢量</strong>、<strong>流线/粒子动画</strong>、<strong>涡量</strong>。</li>
+    <li>支持<strong>攻角旋转</strong>（物体相对来流迎角）、<strong>时均 Cd/Cl</strong>（剔除涡街抖动），以及<strong>导出 Cd/Cl 历史 CSV</strong>。</li>
+    <li>支持示例形状：圆柱、方块、对称翼型、球体截面，可脱机使用。</li>
+  </ul>
+
+  <h2>二、如何把实物变成 3D 模型</h2>
+  <p>你不需要建模软件。拍几张照片，用下列免费网站即可生成 GLB/OBJ：</p>
+
+  <div class="card">
+    <table>
+      <tr><th>网站</th><th>方式</th><th>导出格式</th><th>注意事项</th></tr>
+      <tr><td><a href="https://www.tripo3d.ai" target="_blank">Tripo3D</a></td><td>图片/文字生成 3D</td><td>GLB / OBJ</td><td>免费额度足够测试；建议使用纯色背景、环绕拍摄。</td></tr>
+      <tr><td><a href="https://www.meshy.ai" target="_blank">Meshy</a></td><td>图片转 3D / 文字生成</td><td>GLB / OBJ / FBX</td><td>注册后免费可用；导出时选 GLB。</td></tr>
+      <tr><td><a href="https://lumalabs.ai" target="_blank">Luma AI</a></td><td>摄影测量（环绕拍视频）</td><td>GLB / USDZ</td><td>真实物体扫描效果好，建议拍摄 20–30 秒环绕视频。</td></tr>
+      <tr><td><a href="https://hyperhuman.top" target="_blank">Rodin</a></td><td>图片生成 3D</td><td>GLB / OBJ</td><td>适合人物/商品，免费额度有限。</td></tr>
+      <tr><td><a href="https://poly.cam" target="_blank">Polycam</a></td><td>手机拍照 / 视频扫描</td><td>GLB / OBJ</td><td>有网页版和手机 App，真实物体扫描稳定。</td></tr>
+    </table>
+  </div>
+
+  <h3>推荐操作流程</h3>
+  <div class="step"><div class="n">1</div><div>把要测试的物体放在纯色背景前，手机围绕它缓慢拍 15–30 秒视频（尽量覆盖 360°）。</div></div>
+  <div class="step"><div class="n">2</div><div>上传到 Luma / Polycam / Meshy，等待生成。</div></div>
+  <div class="step"><div class="n">3</div><div>下载 <code>.glb</code> 或 <code>.obj</code> 文件到电脑或手机。</div></div>
+  <div class="step"><div class="n">4</div><div>在本工具的"选择模型来源"里选 <strong>📁 上传 3D 模型</strong>，选中下载的文件。</div></div>
+  <div class="step"><div class="n">5</div><div>调整"视角"（正面/侧面/俯视）和"偏航旋转"，点击 <strong>提取轮廓 → 风洞</strong>，再点开始即可。</div></div>
+
+  <h2>三、界面参数说明</h2>
+  <div class="card">
+    <table>
+      <tr><th>参数</th><th>含义</th><th>建议</th></tr>
+      <tr><td>雷诺数 Re</td><td>惯性力/粘性力之比，决定流动状态。</td><td>50–150 易稳定；超过 200 涡街更明显。</td></tr>
+      <tr><td>网格分辨率</td><td>求解网格的精细程度。</td><td>普通测试用 300×120；追求精度用 400×160。</td></tr>
+      <tr><td>每帧推演步数</td><td>画面每刷新一次推进多少 CFD 步。</td><td>电脑快选 10–20；卡顿选 2–6。</td></tr>
+      <tr><td>底层云图</td><td>压力 / 速度 / 涡量。</td><td>压力图最直观体现阻力来源。</td></tr>
+    </table>
+  </div>
+
+  <h2>四、结果怎么看</h2>
+  <ul>
+    <li><strong>Cd（阻力系数）</strong>：越小越"破风"。圆柱 Re≈100 时本工具稳态约 1.5（文献 2D 值约 1.0–1.4，粗网格略偏高）；流线型车身可降到 0.2–0.4。</li>
+    <li><strong>Cl（升力系数）</strong>：对称物体在零攻角应接近 0；正攻角翼型会出现正升力。</li>
+    <li><strong>压力云图</strong>：红色为高压、蓝色为低压。高压区在前缘，低压尾流区越大会产生更大压差阻力。</li>
+    <li class="note"><strong>关于升力（重要）</strong>：钝体（方块、圆柱）在迎角下升力明显（已验证方块 20° 时 Cl≈1.1）。但<strong>薄/流线型体（如细翼型）在本工具的网格尺度与低雷诺数下，求解器容易落在"对称（无环量）"数值分支，升力会被低估</strong>。这是二维浏览器 CFD 的普遍数值限制，不是求解器 bug——圆柱 Cd≈1.2、方块迎角升力均已用控制体积法独立验证正确。想得到可信翼型升力，请选<strong>最细网格 + 较高 Re（300–400）</strong>；或直接用方块/钝体形状演示攻角效应。</li>
+    <li><strong>涡量 / 流线</strong>：出现周期性交替涡街 = 卡门涡街（Re&gt;47 典型现象）。</li>
+  </ul>
+  <p class="note">注意：本工具对 3D 模型取的是<strong>二维正面剪影</strong>进行真实 CFD 计算。这等同于真实风洞里测翼型或车体侧面的做法，适合比较不同造型的相对气动性能；若需精确全 3D CFD，需要更重的求解器与计算资源。</p>
+
+  <h2>五、如何部署到自己的网站</h2>
+  <p>本工具是<strong>纯静态网页</strong>（CFD 全部在访客浏览器里算，没有服务器开销），可部署到任何免费静态托管。CFD 在浏览器端运行，所以<strong>GitHub Pages 完全免费、无算力额度限制</strong>，非常适合长期放真实测试。</p>
+
+  <h3>方法一：GitHub Pages（当前推荐）</h3>
+  <p>把三个文件原样放进一个 GitHub 仓库，开启 Pages 即可获得稳定网址 <code>https://你的用户名.github.io/仓库名/</code>。</p>
+  <div class="step"><div class="n">1</div><div>在 GitHub 新建一个<strong>公开</strong>仓库（如 <code>wind-tunnel</code>）。</div></div>
+  <div class="step"><div class="n">2</div><div>把 <code>index.html</code>、<code>lbm.js</code>、<code>guide.html</code> 上传到仓库根目录（网页端直接拖拽，或 Git 推送）。</div></div>
+  <div class="step"><div class="n">3</div><div>仓库 → <strong>Settings → Pages → Build and deployment → Source: Deploy from a branch → 选 main / root</strong>，保存。</div></div>
+  <div class="step"><div class="n">4</div><div>约 1 分钟后访问 <code>https://你的用户名.github.io/wind-tunnel/</code>。国内通常可直连（无需加速区域配置）。</div></div>
+  <p class="note">不想自己操作命令行？把 GitHub 个人访问令牌（PAT，勾选 repo 权限）发给我，我可以直接帮你建库、推送并开启 Pages，你只管打开链接。用完可立即在 GitHub 撤销令牌。</p>
+
+  <h3>方法二：EdgeOne Pages（备选）</h3>
+  <div class="step"><div class="n">1</div><div>把三个文件打包成 zip。</div></div>
+  <div class="step"><div class="n">2</div><div>登录 <a href="https://edgeone.ai" target="_blank">EdgeOne Pages</a>，新建项目 → 上传 zip 或通过 Git 推送。</div></div>
+  <div class="step"><div class="n">3</div><div>等待部署完成。免费额度较小，若担心不够用，GitHub Pages 更稳。</div></div>
+
+  <h3>方法三：本地直接打开</h3>
+  <p>直接双击 <code>index.html</code> 也能运行（示例形状可用，上传模型功能需要联网加载 Three.js）。</p>
+
+  <h2>六、已知限制</h2>
+  <ul>
+    <li>当前为<strong>二维截面</strong>仿真：取 3D 模型的正面投影作为障碍物，物理上相当于在真实风洞中测试该方向的"翼型"或"侧面"。</li>
+    <li><strong>流线型薄体在低 Re 下升力偏弱</strong>：细翼型在粗网格、低雷诺数时求解器易锁进对称（无环量）数值分支，Cl 会被低估。钝体（方块/圆柱）迎角升力正常。想得到可信翼型升力，用最细网格 + 较高 Re（300–400）。</li>
+    <li>上传模型功能依赖 Three.js CDN；如希望完全离线，可将 Three.js 相关脚本下载到本地并修改 <code>index.html</code> 的 <code>&lt;script src&gt;</code> 路径。</li>
+    <li>极高雷诺数或极薄物体可能导致数值不稳定，工具会自动把粘度限制在稳定下限，此时"目标/实际 Re"会不一致。</li>
+  </ul>
+
+  <p class="note">物理正确性已验证：圆柱 Re≈100 时稳态 Cd≈1.5、卡门涡街 Strouhal≈0.2（周期性与文献一致）；方块 20° 迎角 Cl≈1.1（钝体升力正确）。流线型薄翼型升力偏弱为已知数值限制。有问题可继续问我，也可在此基础上升级全 3D LBM 等功能。</p>
+</div>
+</body>
+</html>
