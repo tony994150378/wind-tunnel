@@ -6,7 +6,7 @@
 <title>云端风洞测试工具 · Web Wind Tunnel</title>
 <style>
   :root {
-    --bg: #0e1116; --panel: #161b22; --panel2: #1c232c; --line: #2b333d;
+    --bg: #0a0c10; --panel: #161b22; --panel2: #1c232c; --line: #2b333d;
     --txt: #e6edf3; --muted: #9aa7b4; --accent: #4cc2ff; --accent2: #ffb454;
     --good: #3fd07f; --warn: #ff6b6b;
   }
@@ -35,8 +35,9 @@
   button:disabled { opacity: .45; cursor: not-allowed; }
   .chk { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt); margin: 4px 0; }
   canvas { display: block; background: #05080c; border-radius: 8px; width: 100%; }
-  #simWrap { position: relative; }
-  #sim { aspect-ratio: 2.5 / 1; }
+  #simWrap { position: relative; overflow: hidden; border-radius: 8px; background: #05080c; cursor: grab; }
+  #simWrap:active { cursor: grabbing; }
+  #sim { display: block; width: 100%; height: auto; }
   .stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed var(--line); }
   .stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
   .legend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 8px; }
@@ -44,6 +45,7 @@
   .note { font-size: 11px; color: var(--muted); line-height: 1.5; }
   a { color: var(--accent); }
   .pill { display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius: 999px; padding:2px 8px; font-size:11px; color:var(--muted); }
+  .viewbar { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -59,7 +61,7 @@
     <div class="group">
       <label>选择模型来源</label>
       <select id="srcSel">
-        <option value="car" selected>示例 · 汽车车身（风洞）</option>
+        <option value="car" selected>示例 · F1 赛车（风洞）</option>
         <option value="cylinder">示例 · 圆柱</option>
         <option value="square">示例 · 方块</option>
         <option value="airfoil">示例 · 对称翼型</option>
@@ -69,16 +71,17 @@
       <input type="file" id="fileInput" accept=".glb,.gltf,.obj" style="display:none;margin-top:8px;" />
     </div>
 
-    <div class="group" style="margin-top:6px;">
-      <label>🔗 免费 3D 模型下载站（下载后上传测试）</label>
+    <div class="group" style="margin-top:6px;background:#11161d;border:1px solid var(--line);border-radius:8px;padding:8px;">
+      <label style="color:var(--accent2);">🔗 免费 3D 模型下载（点下面直接搜现成车模）</label>
       <div class="links">
-        <a href="https://sketchfab.com/features/free-3d-models" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Sketchfab 免费模型</a>
-        <a href="https://poly.pizza" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Poly Pizza（GLB 直下）</a>
-        <a href="https://www.thingiverse.com" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Thingiverse</a>
-        <a href="https://cults3d.com" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Cults3D</a>
-        <a href="https://www.printables.com" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Printables</a>
+        <a href="https://sketchfab.com/search?q=car+low-poly&features=downloadable" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:4px 10px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">Sketchfab 车模</a>
+        <a href="https://poly.pizza/search/car" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:4px 10px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">Poly Pizza（GLB 直下）</a>
+        <a href="https://www.thingiverse.com/search?q=car&type=things" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:4px 10px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">Thingiverse</a>
+        <a href="https://cults3d.com/en/search?q=car" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:4px 10px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">Cults3D</a>
+        <a href="https://www.printables.com/search/models?q=car" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:4px 10px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">Printables</a>
+        <a href="https://market.pmnd.rs/" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:4px 10px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">POLY（品牌车）</a>
       </div>
-      <div class="note">挑 <b>GLB / OBJ</b> 格式、实心封闭模型（搜索 car / vehicle 找现成车模）。下载后回到上方「上传 3D 模型」即可测风洞。也可用 AI 生成：Tripo、Meshy、Luma、Rodin。</div>
+      <div class="note">挑 <b>GLB / OBJ</b> 格式、<b>实心封闭（水密）</b>模型、带「免费」标签的下载。下载后回到上方「上传 3D 模型」选侧面即可测风洞。也可用 AI 生成：Tripo、Meshy、Luma、Rodin。</div>
     </div>
 
     <div id="modelCtl" class="group" style="display:none;">
@@ -145,7 +148,11 @@
       </select>
       <div class="note" id="obsNote">切换观察面时，来流方向 <b>始终从左吹向右（车头迎风）</b>，不会变。你看到的是物体不同截面的绕流形态。圆柱等对称体各视角截面相同，切换无差异。</div>
       <label class="chk"><input type="checkbox" id="tgVec" checked /> 速度矢量</label>
-      <label class="chk"><input type="checkbox" id="tgPart" checked /> 流线 / 粒子动画</label>
+      <label class="chk"><input type="checkbox" id="tgPart" checked /> 烟雾流线（示踪）</label>
+      <label class="chk"><input type="checkbox" id="tgVortex" checked /> 涡核标记</label>
+      <label class="chk"><input type="checkbox" id="tgSurface" checked /> 表面压力着色</label>
+      <div class="btns" style="margin-top:8px;"><button id="btnF1" class="sec">🏎️ F1 风洞预设</button></div>
+      <div class="note">「F1 风洞预设」一键切到高雷诺数（Re=200）+ 大涡模拟 + 烟雾流线，最接近真实 F1 风洞观感；车身默认即此配置。</div>
     </div>
 
     <div class="btns">
@@ -165,12 +172,20 @@
   <div class="panel">
     <h2>流场可视化</h2>
     <div id="simWrap"><canvas id="sim"></canvas></div>
+    <div class="viewbar">
+      <button id="btnResetView" class="sec" style="padding:5px 10px;font-size:12px;">⟲ 还原视图</button>
+      <label style="margin:0;flex:1;min-width:140px;">缩放 <span class="val" id="zoomVal">100%</span>
+        <input type="range" id="zoom" min="50" max="500" value="100" />
+      </label>
+      <span class="note" style="white-space:nowrap;">滚轮缩放 · 拖拽平移 · 双击还原</span>
+    </div>
     <div class="legend">
       <span id="legLow">低</span>
       <div class="bar" id="legBar"></div>
       <span id="legHigh">高</span>
       <span id="legName" style="margin-left:8px;">压力</span>
     </div>
+    <div class="note" style="margin-top:6px;">红=迎风高压（车头），蓝=低压尾流（车尾）。开启「表面压力着色」后，车身也会按相邻流体压力/速度显示彩色表面，更像真实风洞 CFD。滚轮或右上方滑块放大，可观察涡流细节。</div>
   </div>
 
   <!-- 右：数据 -->
@@ -202,33 +217,66 @@
   'use strict';
   // ---------- 全局状态 ----------
   const S = {
-    wt: null, W: 300, H: 120, running: false, raf: 0,
+    wt: null, W: 300, H: 120, baseScale: 1, dpr: 1,
+    running: false, raf: 0,
     src: 'car', re: 100, spf: 6, observe: 'side', turb: 'none',
-    base: 'pressure', showVec: true, showPart: true,
+    base: 'pressure', showVec: true, showPart: true, showVortex: true, showSurface: true,
     particles: [], cdHist: [], clHist: [], tHist: [], lastT: 0, fps: 0,
-    modelGroup: null, yaw: 0, viewAngle: 'front', alpha: 0
+    modelGroup: null, yaw: 0, viewAngle: 'front', alpha: 0,
+    view: { scale: 1, ox: 0, oy: 0 }, drag: null
   };
 
   const $ = id => document.getElementById(id);
   const sim = $('sim');
   const off = document.createElement('canvas');   // 离屏：render 先画到这里
   const sctx = off.getContext('2d');
-  const mctx = sim.getContext('2d');               // 主画布：按视角旋转后贴图
+  const mctx = sim.getContext('2d');               // 主画布
   const chart = $('chart'), cctx = chart.getContext('2d');
+
+  // ---------- 视图工具 ----------
+  function pxPerGrid(){ return S.baseScale * S.view.scale * S.dpr; }
+  function lineWidthPx(px){ return Math.max(0.4, px) / pxPerGrid(); }
+  function fontPx(px){ return (px / pxPerGrid()) + 'px sans-serif'; }
+  function setViewTransform(){
+    const s = pxPerGrid();
+    mctx.setTransform(s, 0, 0, s, S.view.ox * S.dpr, S.view.oy * S.dpr);
+  }
+  function resetView(){
+    S.view = { scale: 1, ox: 0, oy: 0 };
+    $('zoom').value = 100; $('zoomVal').textContent = '100%';
+    render();
+  }
+  function zoomTo(z, cx, cy){
+    // cx,cy 为 CSS 像素（相对 sim 元素）
+    const z0 = S.view.scale;
+    const z1 = Math.max(0.5, Math.min(6, z));
+    S.view.ox = cx - (cx - S.view.ox) * (z1 / z0);
+    S.view.oy = cy - (cy - S.view.oy) * (z1 / z0);
+    S.view.scale = z1;
+    $('zoom').value = Math.round(z1 * 100);
+    $('zoomVal').textContent = Math.round(z1 * 100) + '%';
+    render();
+  }
 
   // ---------- 网格尺寸同步 ----------
   function sizeCanvases(){
-    const dpr = Math.min(window.devicePixelRatio||1, 2);
+    const wrap = $('simWrap');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    S.dpr = dpr;
     // 离屏画布固定为网格尺寸（1:1），render 先画到这里
     off.width = S.W; off.height = S.H;
-    sim.width = S.W; sim.height = S.H;
-    sim.style.aspectRatio = S.W / S.H;
+    // 主画布按容器宽度，保持宽高比
+    const rect = wrap.getBoundingClientRect();
+    const cw = Math.max(320, Math.floor(rect.width));
+    const ch = Math.floor(cw * S.H / S.W);
+    sim.width = cw * dpr; sim.height = ch * dpr;
+    sim.style.width = cw + 'px'; sim.style.height = ch + 'px';
+    S.baseScale = cw / S.W;
     chart.width = chart.clientWidth * dpr; chart.height = 160 * dpr;
-    cctx.setTransform(dpr,0,0,dpr,0,0);
+    cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   // ---------- 掩膜旋转（攻角） ----------
-  // 绕域中心将障碍物掩膜旋转 deg 度（屏幕坐标系，y 向下），最近邻采样。
   function rotateMask(base, W, H, deg){
     if (!deg) return base;
     const out = new Uint8Array(W*H);
@@ -253,7 +301,7 @@
     }
     return Math.max(1, maxX-minX+1);
   }
-  function ySpan(mask, W, H){ // 垂直来流方向（y）投影跨度，车头正视时作参考长度
+  function ySpan(mask, W, H){
     let minY=H, maxY=-1;
     for (let y=0;y<H;y++){
       for (let x=0;x<W;x++){ if(mask[y*W+x]){ if(y<minY)minY=y; if(y>maxY)maxY=y; break; } }
@@ -262,7 +310,7 @@
   }
   function buildMask(){
     let base, kind = S.src;
-    if (S.src === 'car'){       // 示例车身：按观察视角取不同真实 2D 截面，来流始终左→右
+    if (S.src === 'car'){
       kind = S.observe === 'top' ? 'car_top' : S.observe === 'front' ? 'car_front' : 'car';
     }
     if (S.src === 'upload'){
@@ -271,7 +319,6 @@
     } else {
       base = LBM.WindTunnel.shapeMask(S.W, S.H, kind, { r: Math.min(S.W,S.H)*0.14 });
     }
-    // 参考长度：默认取沿来流投影(xSpan)；车头正视用垂直来流投影(ySpan=迎风高度)，避免分母过小使 Cd 爆炸
     let refLen = xSpan(base, S.W, S.H);
     if (kind === 'car_front') refLen = ySpan(base, S.W, S.H);
     return { mask: rotateMask(base, S.W, S.H, S.alpha), refLen };
@@ -299,25 +346,27 @@
   }
 
   // ---------- 颜色映射 ----------
-  function jet(t){ // t∈[0,1] → [r,g,b]
+  function jet(t){
     t = Math.max(0, Math.min(1, t));
     const r = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-3)));
     const g = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-2)));
     const b = Math.max(0, Math.min(1, 1.5 - Math.abs(4*t-1)));
     return [r*255|0, g*255|0, b*255|0];
   }
-  function div(t){ // 发散：蓝-白-红，t∈[-1,1]
+  function div(t){
     t = Math.max(-1, Math.min(1, t));
     if (t<0){ const k=-t; return [ (255*(1-k)+60*k)|0, (255*(1-k)+120*k)|0, 255 ]; }
     const k=t; return [ 255, (255*(1-k)+120*k)|0, (255*(1-k)+60*k)|0 ];
   }
 
   // ---------- 渲染流场 ----------
-  // ---------- 贴图（视图固定，不旋转，来流始终左→右） ----------
   function blit(){
     mctx.setTransform(1,0,0,1,0,0);
     mctx.clearRect(0,0,sim.width,sim.height);
-    mctx.drawImage(off, 0, 0);
+    setViewTransform();
+    mctx.imageSmoothingEnabled = true;
+    mctx.imageSmoothingQuality = 'high';
+    mctx.drawImage(off, 0, 0, S.W, S.H, 0, 0, S.W, S.H);
   }
 
   function render(){
@@ -326,68 +375,212 @@
     const img = sctx.createImageData(W, H);
     const data = img.data;
 
-    // 计算极值用于归一化
+    // 极值归一化
     let pmax=1e-6, smax=1e-6, vmax=1e-6;
     for (let i=0;i<W*H;i++){
+      if (mask[i]) continue;
       const dev = rho[i]-wt.rho0;
       if (Math.abs(dev)>pmax) pmax=Math.abs(dev);
       const sp = Math.hypot(ux[i], uy[i]); if (sp>smax) smax=sp;
       const c = Math.abs(curl[i]); if (c>vmax) vmax=c;
     }
 
+    // 固体表面着色：对每个 mask 格找最近流体格，按距离衰减着色，
+    // 让车身像真实风洞 CFD 那样整体呈现彩色压力/速度分布。
+    const surfaceColor = (x,y)=>{
+      let bestD=1e9, bestVal=0, bestSgn=1;
+      const R=4;
+      for (let dy=-R; dy<=R; dy++){
+        for (let dx=-R; dx<=R; dx++){
+          if (dx===0 && dy===0) continue;
+          const xx=x+dx, yy=y+dy;
+          if (xx<0||xx>=W||yy<0||yy>=H) continue;
+          const j=yy*W+xx;
+          if (mask[j]) continue;
+          const d = dx*dx+dy*dy;
+          if (d < bestD){
+            bestD=d;
+            if (S.base==='pressure') bestVal = rho[j]-wt.rho0;
+            else if (S.base==='speed') bestVal = Math.hypot(ux[j], uy[j]);
+            else { bestVal = Math.abs(curl[j]); bestSgn = curl[j]>=0?1:-1; }
+          }
+        }
+      }
+      if (bestD===1e9) return [18,22,28];
+      const fade = Math.max(0.58, 1 - Math.sqrt(bestD)/(R*0.55));
+      let c;
+      if (S.base==='pressure'){
+        // 把有符号压力映射到 [0,1]，再用 jet 彩虹色：迎风高压→红，背风低压→蓝，过渡→绿/黄
+        const t = Math.max(-1, Math.min(1, bestVal/pmax));
+        c = jet((t + 1) / 2);
+      } else if (S.base==='speed') c = jet(bestVal/smax);
+      else c = div(bestSgn * bestVal/vmax);
+      return [ c[0]*fade|0, c[1]*fade|0, c[2]*fade|0 ];
+    };
+
     for (let y=0;y<H;y++){
       for (let x=0;x<W;x++){
-        const i = y*W+x, p = (y*W+x)*4;
+        const i = y*W+x, p = i*4;
         let col;
-        if (mask[i]){ col = [40,46,54]; }
-        else if (S.base==='pressure'){ col = div((rho[i]-wt.rho0)/pmax); }
+        if (mask[i]){
+          col = S.showSurface ? surfaceColor(x,y) : [18,22,28];
+        } else if (S.base==='pressure'){ col = div((rho[i]-wt.rho0)/pmax); }
         else if (S.base==='speed'){ col = jet(Math.hypot(ux[i],uy[i])/smax); }
         else { col = div(curl[i]/vmax); }
         data[p]=col[0]; data[p+1]=col[1]; data[p+2]=col[2]; data[p+3]=255;
       }
     }
     sctx.putImageData(img, 0, 0);
+    blit();
+    drawObstacle();
 
-    // 障碍物描边（深色）
-    sctx.fillStyle = 'rgba(20,24,30,0.9)';
-    // 速度矢量
-    if (S.showVec){
-      sctx.strokeStyle = 'rgba(230,240,255,0.55)'; sctx.lineWidth = 0.6;
-      const step = 8;
-      for (let y=step/2;y<H;y+=step){
-        for (let x=step/2;x<W;x+=step){
-          const i=((y|0)*W+(x|0));
-          if (mask[i]) continue;
-          const vx=ux[i], vy=uy[i]; const m=Math.hypot(vx,vy); if (m<1e-4) continue;
-          const L = Math.min(step*0.9, m*step*9);
-          const ex=x+vx/m*L, ey=y+vy/m*L;
-          sctx.beginPath(); sctx.moveTo(x,y); sctx.lineTo(ex,ey); sctx.stroke();
+    if (S.showVec) drawVectors();
+    if (S.showPart) drawStreamlines();
+    if (S.showVortex) drawVortexCores(pmax, smax, vmax);
+    drawInflowArrow();
+    drawAnnotations();
+  }
+
+  // 清晰车体轮廓（在变换后的网格坐标上绘制）
+  function drawObstacle(){
+    const W=S.W, H=S.H, mask=S.wt.mask;
+    setViewTransform();
+    // 开启表面着色时，用更细更淡的轮廓，避免遮挡表面的彩色压力分布
+    mctx.strokeStyle = S.showSurface ? 'rgba(220,240,255,0.45)' : 'rgba(190,220,250,0.92)';
+    mctx.lineWidth = lineWidthPx(S.showSurface ? 0.6 : 1.6);
+    mctx.beginPath();
+    for (let y=0;y<H;y++){
+      for (let x=0;x<W;x++){
+        if (!mask[y*W+x]) continue;
+        if (x===0    || !mask[y*W+x-1]){ mctx.moveTo(x,y);     mctx.lineTo(x,y+1); }
+        if (x===W-1  || !mask[y*W+x+1]){ mctx.moveTo(x+1,y);   mctx.lineTo(x+1,y+1); }
+        if (y===0    || !mask[(y-1)*W+x]){ mctx.moveTo(x,y);   mctx.lineTo(x+1,y); }
+        if (y===H-1  || !mask[(y+1)*W+x]){ mctx.moveTo(x,y+1); mctx.lineTo(x+1,y+1); }
+      }
+    }
+    mctx.stroke();
+  }
+
+  function drawVectors(){
+    const W=S.W, H=S.H, ux=S.wt.ux, uy=S.wt.uy, mask=S.wt.mask;
+    setViewTransform();
+    mctx.strokeStyle = 'rgba(235,245,255,0.55)';
+    mctx.lineWidth = lineWidthPx(0.9);
+    const step = 6;
+    for (let y=step/2;y<H;y+=step){
+      for (let x=step/2;x<W;x+=step){
+        const i=((y|0)*W+(x|0));
+        if (mask[i]) continue;
+        const vx=ux[i], vy=uy[i]; const m=Math.hypot(vx,vy); if (m<1e-4) continue;
+        const L = Math.min(step*0.85, m*step*7);
+        mctx.beginPath(); mctx.moveTo(x,y); mctx.lineTo(x+vx/m*L, y+vy/m*L); mctx.stroke();
+      }
+    }
+  }
+
+  // 烟雾流线：从入口均匀布种，沿速度场积分，颜色按当地速度渐变
+  function drawStreamlines(){
+    const W=S.W, H=S.H, wt=S.wt, mask=wt.mask, ux=wt.ux, uy=wt.uy;
+    const nSeed = 34, ds = 1.2, maxK = 300;
+    setViewTransform();
+    mctx.lineWidth = lineWidthPx(1.0);
+    mctx.lineCap = 'round';
+    // 速度归一化用于着色
+    let smax=1e-6; for (let i=0;i<W*H;i++) if(!mask[i]) smax=Math.max(smax, Math.hypot(ux[i],uy[i]));
+    for (let s=0; s<nSeed; s++){
+      let x=1.5, y=(s+0.5)/nSeed*H;
+      const grad = mctx.createLinearGradient(x*pxPerGrid(), y*pxPerGrid(), (x+W*0.5)*pxPerGrid(), y*pxPerGrid());
+      grad.addColorStop(0, 'rgba(160,220,255,0.18)');
+      grad.addColorStop(1, 'rgba(255,255,255,0.55)');
+      mctx.strokeStyle = grad;
+      mctx.beginPath(); mctx.moveTo(x, y);
+      let stopped=false;
+      for (let k=0; k<maxK; k++){
+        const gx=x|0, gy=y|0;
+        if (gx<0||gx>=W||gy<0||gy>=H) break;
+        if (mask[gy*W+gx]){ stopped=true; break; }
+        const vx=ux[gy*W+gx], vy=uy[gy*W+gx];
+        const sp=Math.hypot(vx,vy); if (sp<1e-6) break;
+        x += vx/sp*ds; y += vy/sp*ds;
+        mctx.lineTo(x, y);
+        if (x>=W-1) break;
+      }
+      mctx.stroke();
+    }
+    mctx.lineCap = 'butt';
+  }
+
+  // 涡核标记：找涡量局部极大值，画小漩涡圈
+  function drawVortexCores(pmax, smax, vmax){
+    if (S.base !== 'vorticity' && S.base !== 'speed') return;
+    const W=S.W, H=S.H, wt=S.wt, mask=wt.mask, curl=wt.curl;
+    setViewTransform();
+    const thr = vmax * 0.35;
+    const r = 2.2;
+    for (let y=2;y<H-2;y+=2){
+      for (let x=2;x<W-2;x+=2){
+        const i=y*W+x;
+        if (mask[i]) continue;
+        const c = Math.abs(curl[i]);
+        if (c < thr) continue;
+        // 简单局部极大
+        let ok=true;
+        for (let dy=-1;dy<=1 && ok;dy++) for(let dx=-1;dx<=1;dx++){
+          const j=(y+dy)*W+(x+dx); if(!mask[j] && Math.abs(curl[j])>c){ ok=false; break; }
         }
+        if (!ok) continue;
+        const sgn = curl[i] > 0 ? 1 : -1;
+        const col = sgn>0 ? 'rgba(255,120,120,0.55)' : 'rgba(120,180,255,0.55)';
+        mctx.strokeStyle = col;
+        mctx.lineWidth = lineWidthPx(1.0);
+        mctx.beginPath();
+        mctx.arc(x+0.5, y+0.5, r, 0, Math.PI*2);
+        mctx.stroke();
+        // 小箭头表示转向
+        mctx.fillStyle = col;
+        const a0 = performance.now()/400 + (sgn>0?0:Math.PI);
+        const ax = x+0.5 + Math.cos(a0)*r*0.6;
+        const ay = y+0.5 + Math.sin(a0)*r*0.6;
+        mctx.beginPath(); mctx.arc(ax, ay, lineWidthPx(2.5)*0.5, 0, Math.PI*2); mctx.fill();
       }
     }
-    // 粒子（流线动画）
-    if (S.showPart){
-      sctx.fillStyle = 'rgba(120,220,255,0.9)';
-      for (const pt of S.particles){
-        const gx=pt.x|0, gy=pt.y|0;
-        if (gx<0||gx>=W||gy<0||gy>=H) continue;
-        sctx.fillRect(pt.x, pt.y, 1.2, 1.2);
-      }
-    }
-    // 来流方向标注（汽车风洞：从左向右吹，撞物体迎风面）
-    sctx.save();
-    sctx.fillStyle = 'rgba(255,180,84,0.95)';
-    sctx.font = 'bold 12px sans-serif';
-    sctx.fillText('来流 U∞ →', 4, 13);
-    const ax = 6, ay = H * 0.5, al = 24;
-    sctx.strokeStyle = 'rgba(255,180,84,0.95)'; sctx.lineWidth = 1.6;
-    sctx.beginPath(); sctx.moveTo(ax, ay); sctx.lineTo(ax + al, ay); sctx.stroke();
-    sctx.beginPath();
-    sctx.moveTo(ax + al, ay); sctx.lineTo(ax + al - 6, ay - 4);
-    sctx.lineTo(ax + al - 6, ay + 4); sctx.closePath();
-    sctx.fillStyle = 'rgba(255,180,84,0.95)'; sctx.fill();
-    sctx.restore();
-    blit();   // 按所选视角把离屏画面旋转贴回主画布
+  }
+
+  function drawInflowArrow(){
+    setViewTransform();
+    mctx.fillStyle = 'rgba(255,180,84,0.98)';
+    mctx.font = 'bold ' + fontPx(13);
+    mctx.fillText('来流 U∞ →', 4, 13);
+    const ax = 6, ay = 20, al = 26;
+    mctx.strokeStyle = 'rgba(255,180,84,0.98)'; mctx.lineWidth = lineWidthPx(1.6);
+    mctx.beginPath(); mctx.moveTo(ax,ay); mctx.lineTo(ax+al,ay); mctx.stroke();
+    mctx.beginPath();
+    mctx.moveTo(ax+al,ay); mctx.lineTo(ax+al-6,ay-4); mctx.lineTo(ax+al-6,ay+4);
+    mctx.closePath(); mctx.fillStyle = 'rgba(255,180,84,0.98)'; mctx.fill();
+  }
+
+  // 风洞地板 + 车头/车尾标注
+  function drawAnnotations(){
+    const W=S.W, H=S.H, mask=S.wt.mask;
+    let mnx=W, mxx=-1, mny=H, mxy=-1;
+    for (let y=0; y<H; y++) for (let x=0; x<W; x++){ if (mask[y*W+x]){ if(x<mnx)mnx=x; if(x>mxx)mxx=x; if(y<mny)mny=y; if(y>mxy)mxy=y; } }
+    if (mxx<0) return;
+    const gy=(mxy+3);
+    setViewTransform();
+    mctx.save();
+    mctx.strokeStyle='rgba(120,140,160,0.65)'; mctx.lineWidth=lineWidthPx(1.1);
+    mctx.setLineDash([6,5]);
+    mctx.beginPath(); mctx.moveTo(0, gy); mctx.lineTo(W, gy); mctx.stroke();
+    mctx.setLineDash([]);
+    mctx.fillStyle='rgba(150,170,190,0.8)'; mctx.font='bold '+fontPx(9);
+    mctx.fillText('风洞地板（示意）', 6, gy+10);
+    mctx.fillStyle='rgba(255,210,120,0.95)'; mctx.font='bold '+fontPx(9);
+    mctx.fillText('车头（迎风）→', Math.max(1, mnx-1), Math.max(12, mny-2));
+    mctx.fillStyle='rgba(120,210,255,0.95)';
+    const tailText = '← 车尾 / 尾流';
+    const tw = tailText.length * (9/pxPerGrid()); // 近似宽度
+    mctx.fillText(tailText, Math.min(W-tw-1, mxx+2), Math.max(12, mny-2));
+    mctx.restore();
   }
 
   function advectParticles(){
@@ -410,11 +603,10 @@
     if (!S.running) return;
     const t0=performance.now();
     for (let k=0;k<S.spf;k++) S.wt.step();
-    advectParticles();
     render();
-      const now=performance.now();
-      const dt = now - (S.lastT||now); S.lastT=now;
-      S.fps = dt>0 ? Math.round(1000/dt) : 0;
+    const now=performance.now();
+    const dt = now - (S.lastT||now); S.lastT=now;
+    S.fps = dt>0 ? Math.round(1000/dt) : 0;
     updateReadouts();
     pushHistory();
     drawChart();
@@ -425,7 +617,6 @@
     const wt=S.wt; if(!wt) return;
     $('cdVal').textContent = wt.cd.toFixed(3);
     $('clVal').textContent = wt.cl.toFixed(3);
-    // 时均 Cd/Cl（最近一段窗口，剔除瞬态涡街抖动，给出稳态读数）
     const n = S.cdHist.length;
     if (n >= 2){
       const k = Math.min(n, 200);
@@ -434,7 +625,6 @@
       $('cdMean').textContent = (sc/k).toFixed(3);
       $('clMean').textContent = (sl/k).toFixed(3);
     }
-    // 实际 Re = u0*L/nu
     const reAct = (wt.u0*wt.charLength/wt.nu);
     $('reNow').textContent = S.re + ' / ' + reAct.toFixed(0);
     $('stepVal').textContent = wt.stepCount;
@@ -483,7 +673,7 @@
   let renderer, scene, camera, gltfLoader, objLoader;
   function sizeModelView(){
     if (!renderer) return;
-    const mw=280, mh=Math.round(mw*S.H/S.W); // 与网格纵横比一致
+    const mw=280, mh=Math.round(mw*S.H/S.W);
     renderer.setSize(mw, mh, false);
     $('modelView').style.height = mh+'px';
   }
@@ -505,7 +695,6 @@
 
   function placeModel(obj){
     if (S.modelGroup){ try{ scene.remove(S.modelGroup); }catch(e){} }
-    // 居中并缩放到合适大小
     const box=new THREE.Box3().setFromObject(obj);
     const c=box.getCenter(new THREE.Vector3());
     const size=box.getSize(new THREE.Vector3());
@@ -520,7 +709,7 @@
 
   function fitCamera(){
     const aspect=S.W/S.H;
-    const h=1.5; // 半高（世界单位）
+    const h=1.5;
     camera.left=-h*aspect; camera.right=h*aspect; camera.top=h; camera.bottom=-h;
     camera.updateProjectionMatrix();
   }
@@ -540,10 +729,8 @@
     renderer.render(scene,camera);
   }
 
-  // 渲染到离屏画布提取剪影
   function extractSilhouette(){
     const W=S.W, H=S.H;
-    // 强制黑色实体 + 白底，保证干净二值化
     const prevMat=scene.overrideMaterial;
     scene.overrideMaterial=new THREE.MeshBasicMaterial({color:0x000000});
     const r2=new THREE.WebGLRenderTarget(W,H);
@@ -551,15 +738,14 @@
     renderer.setRenderTarget(r2); renderer.render(scene,camera);
     renderer.setRenderTarget(prev);
     scene.overrideMaterial=prevMat;
-    // 读像素
     const buf=new Uint8Array(W*H*4);
     renderer.readRenderTargetPixels(r2,0,0,W,H,buf);
     r2.dispose();
     const mask=new Uint8Array(W*H);
     for (let i=0;i<W*H;i++){
       const p=i*4; const lum=(buf[p]+buf[p+1]+buf[p+2])/3;
-      const x=i%W, yb=Math.floor(i/W), y=H-1-yb; // WebGL 原点在左下，掩膜原点在左上
-      mask[y*W+x]= lum<200 ? 1:0; // 非白即实体
+      const x=i%W, yb=Math.floor(i/W), y=H-1-yb;
+      mask[y*W+x]= lum<200 ? 1:0;
     }
     return mask;
   }
@@ -589,6 +775,10 @@
       $('observe').style.display = carObs?'inline-block':'none';
       $('obsNote').style.display = carObs?'block':'none';
       if (!isUp && S.modelGroup){ scene.remove(S.modelGroup); S.modelGroup=null; }
+      if (carObs){
+        if (S.re < 150){ S.re=200; $('re').value=200; $('reVal').textContent=200; }
+        if (S.turb !== 'les'){ S.turb='les'; $('turbSel').value='les'; }
+      }
       initSim();
     });
     $('fileInput').addEventListener('change', e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
@@ -596,7 +786,7 @@
     $('alpha').addEventListener('input', e=>{
       S.alpha=+e.target.value; $('alphaVal').textContent=S.alpha+'°';
       const was=S.running; initSim();
-      if (was){ S.running=true; S.lastT=0; loop(); } // 改几何后保持运行，便于扫攻角
+      if (was){ S.running=true; S.lastT=0; loop(); }
     });
     $('spf').addEventListener('input', e=>{ S.spf=+e.target.value; $('spfVal').textContent=S.spf; });
     $('turbSel').addEventListener('change', e=>{ S.turb=e.target.value; initSim(); });
@@ -610,13 +800,75 @@
     $('observe').addEventListener('change', e=>{ S.observe=e.target.value; initSim(); });
     $('tgVec').addEventListener('change', e=>{ S.showVec=e.target.checked; render(); });
     $('tgPart').addEventListener('change', e=>{ S.showPart=e.target.checked; render(); });
+    $('tgVortex').addEventListener('change', e=>{ S.showVortex=e.target.checked; render(); });
+    $('tgSurface').addEventListener('change', e=>{ S.showSurface=e.target.checked; render(); });
     $('btnStart').addEventListener('click', ()=>{ if(!S.wt) initSim(); S.running=true; S.lastT=0; loop(); });
     $('btnPause').addEventListener('click', ()=>{ S.running=false; cancelAnimationFrame(S.raf); });
     $('btnReset').addEventListener('click', ()=>{ initSim(); });
     $('btnCsv').addEventListener('click', exportCsv);
+    $('btnF1').addEventListener('click', ()=>{
+      if (S.src !== 'car'){
+        S.src='car'; $('srcSel').value='car';
+        $('modelCtl').style.display='none'; $('fileInput').style.display='none';
+        $('obsLbl').style.display='block'; $('observe').style.display='inline-block'; $('obsNote').style.display='block';
+      }
+      S.observe='side'; $('observe').value='side';
+      S.re=200; $('re').value=200; $('reVal').textContent=200;
+      S.turb='les'; $('turbSel').value='les';
+      S.base='pressure'; $('baseSel').value='pressure'; $('legName').textContent='压力';
+      S.showVec=true; $('tgVec').checked=true;
+      S.showPart=true; $('tgPart').checked=true;
+      S.showVortex=true; $('tgVortex').checked=true;
+      S.showSurface=true; $('tgSurface').checked=true;
+      resetView();
+      initSim(); S.running=true; S.lastT=0; loop();
+    });
+    $('btnResetView').addEventListener('click', resetView);
+    $('zoom').addEventListener('input', e=>{
+      const rect = sim.getBoundingClientRect();
+      zoomTo(+e.target.value/100, rect.width/2, rect.height/2);
+    });
     $('viewAngle').addEventListener('change', e=>{ S.viewAngle=e.target.value; applyOrientation(); });
     $('yaw').addEventListener('input', e=>{ S.yaw=+e.target.value; $('yawVal').textContent=S.yaw+'°'; applyOrientation(); });
     $('btnExtract').addEventListener('click', ()=>{ if(S.modelGroup){ initSim(); } });
+
+    // 画布交互：滚轮缩放、拖拽平移、双击还原
+    sim.addEventListener('wheel', e=>{
+      e.preventDefault();
+      const rect = sim.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+      zoomTo(S.view.scale * factor, mx, my);
+    }, {passive:false});
+    sim.addEventListener('mousedown', e=>{
+      S.drag = { x:e.clientX, y:e.clientY, ox:S.view.ox, oy:S.view.oy };
+      sim.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', e=>{
+      if (!S.drag) return;
+      S.view.ox = S.drag.ox + (e.clientX - S.drag.x);
+      S.view.oy = S.drag.oy + (e.clientY - S.drag.y);
+      render();
+    });
+    window.addEventListener('mouseup', ()=>{ S.drag=null; sim.style.cursor=''; });
+    sim.addEventListener('dblclick', resetView);
+    // 触摸支持（双指缩放较复杂，先支持单指拖拽）
+    sim.addEventListener('touchstart', e=>{
+      if (e.touches.length===1){
+        const t=e.touches[0];
+        S.drag = { x:t.clientX, y:t.clientY, ox:S.view.ox, oy:S.view.oy };
+      }
+    }, {passive:false});
+    sim.addEventListener('touchmove', e=>{
+      if (S.drag && e.touches.length===1){
+        e.preventDefault();
+        const t=e.touches[0];
+        S.view.ox = S.drag.ox + (t.clientX - S.drag.x);
+        S.view.oy = S.drag.oy + (t.clientY - S.drag.y);
+        render();
+      }
+    }, {passive:false});
+    sim.addEventListener('touchend', ()=>{ S.drag=null; });
   }
 
   // ---------- 启动 ----------
@@ -624,14 +876,19 @@
     const [w,h]=$('gridSel').value.split('x').map(Number); S.W=w; S.H=h;
     sizeCanvases();
     bind();
+    if (S.src==='car'){
+      S.re=200; $('re').value=200; $('reVal').textContent=200;
+      S.turb='les'; $('turbSel').value='les';
+    }
     const ok=initThree();
     if(!ok){ $('modelCtl').querySelector('.note').textContent='（未加载 Three.js，上传模型功能需联网；示例形状不受影响）'; }
     $('fileInput').style.display='none';
     initSim();
-    // 图例初始
     const g=$('legBar'); g.style.background='linear-gradient(90deg,#003cff,#ffffff,#ff3c3c)';
+    if (location.search.indexOf('autostart=1')>=0){ S.running=true; S.lastT=0; loop(); }
   }
   window.addEventListener('load', boot);
+  window.addEventListener('resize', ()=>{ sizeCanvases(); render(); });
 })();
 </script>
 </body>

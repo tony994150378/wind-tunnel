@@ -116,6 +116,23 @@
     static shapeMask(w, h, kind, opts = {}) {
       const mask = new Uint8Array(w * h);
       const cx = w * 0.3, cyc = h / 2;
+      const inPoly = (px, py, pts) => {
+        let ins = false;
+        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+          const xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+          if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) ins = !ins;
+        }
+        return ins;
+      };
+      const fillPoly = (pts) => {
+        let mnx = Infinity, mxx = -Infinity, mny = Infinity, mxy = -Infinity;
+        for (const [a, b] of pts) { if (a < mnx) mnx = a; if (a > mxx) mxx = a; if (b < mny) mny = b; if (b > mxy) mxy = b; }
+        const X0 = Math.max(0, Math.floor(mnx)), X1 = Math.min(w - 1, Math.ceil(mxx));
+        const Y0 = Math.max(0, Math.floor(mny)), Y1 = Math.min(h - 1, Math.ceil(mxy));
+        for (let y = Y0; y <= Y1; y++)
+          for (let x = X0; x <= X1; x++)
+            if (inPoly(x + 0.5, y + 0.5, pts)) mask[y * w + x] = 1;
+      };
       if (kind === 'cylinder') {
         const r = opts.r || Math.min(w, h) * 0.12;
         for (let y = 0; y < h; y++)
@@ -150,28 +167,44 @@
             if (dx * dx + dy * dy <= r * r) mask[y * w + x] = 1;
           }
       } else if (kind === 'car') {
-        // 简化车体侧视（Ahmed body 风格）：前缘钝头迎风，后部斜背收尾。
-        // 车长沿 x 方向、车头朝左，来流从左吹即“从前方吹”，正是汽车风洞配置。
-        const L = opts.L || Math.min(w, h) * 0.52;   // 车长
-        const Hh = opts.Hh || Math.min(w, h) * 0.18; // 车高
-        const x0 = w * 0.20;                          // 车头 x（前方留出稳定段）
-        const yc = h / 2;
-        const top = yc - Hh / 2, bot = yc + Hh / 2;
-        const slantLen = L * 0.34;                    // 斜背长度
-        const cutMax = Hh * 0.5;                      // 斜背最大切高
-        const tailStart = x0 + L - slantLen;
-        for (let x = 0; x < w; x++) {
-          for (let y = 0; y < h; y++) {
-            if (x < x0 || x > x0 + L) continue;
-            if (y < top || y > bot) continue;
-            if (x > tailStart) {
-              const tt = (x - tailStart) / slantLen;   // 0..1
-              const cut = cutMax * tt;
-              if (y < top + cut) continue;             // 斜背上方被切掉
-            }
-            mask[y * w + x] = 1;
-          }
-        }
+        // F1 赛车侧视轮廓：车头（尖鼻 + 前翼，左）迎风，车尾（高尾翼，右）。
+        // 来流固定左→右，车头朝左，直观对应真实风洞“从前方吹”。
+        const yc = h / 2, Hh = Math.min(w, h) * 0.18;
+        const x0 = w * 0.15, L = w * 0.54, x1 = x0 + L;
+        const floor = yc + Hh * 0.5;
+        // 主体楔形：低尖鼻(左) → 座舱/进气(中高) → 低车尾(右)
+        fillPoly([
+          [x0, floor],
+          [x0, yc - Hh * 0.10],
+          [x0 + 0.10 * L, yc - Hh * 0.40],
+          [x0 + 0.28 * L, yc - Hh * 0.82],
+          [x0 + 0.40 * L, yc - Hh * 0.92],
+          [x0 + 0.56 * L, yc - Hh * 0.52],
+          [x0 + 0.82 * L, yc - Hh * 0.22],
+          [x1, yc - Hh * 0.08],
+          [x1, floor],
+        ]);
+        // 前翼（车头，向左下突出）
+        fillPoly([
+          [x0 - 0.05 * L, floor],
+          [x0 + 0.09 * L, floor],
+          [x0 + 0.09 * L, floor + Hh * 0.30],
+          [x0 - 0.05 * L, floor + Hh * 0.30],
+        ]);
+        // 尾翼（车尾，右侧高耸，底部与车体相连）
+        fillPoly([
+          [x1 - 0.05 * L, yc],
+          [x1 + 0.02 * L, yc],
+          [x1 + 0.02 * L, yc - Hh * 1.45],
+          [x1 - 0.05 * L, yc - Hh * 1.45],
+        ]);
+        // 尾翼端板
+        fillPoly([
+          [x1 - 0.07 * L, yc - Hh * 1.55],
+          [x1 + 0.04 * L, yc - Hh * 1.55],
+          [x1 + 0.04 * L, yc - Hh * 1.40],
+          [x1 - 0.07 * L, yc - Hh * 1.40],
+        ]);
       } else if (kind === 'car_top') {
         // 俯视：来流仍从左→右（车头朝左），截面为车顶平面（前圆后尖的梯形）。
         // 与侧视共用同一“车头迎风”约定，只是观察的是车顶这个面。
@@ -185,6 +218,7 @@
             let half = bw;
             if (x < x0 + L * 0.08) { const t = (x - x0) / (L * 0.08); half = bw * Math.sqrt(Math.max(0, t)); }
             if (x > tailStart) { const tt = (x - tailStart) / slantLen; half = bw * (1 - 0.5 * tt); }
+            if (x > x0 + L * 0.90) half = bw * 1.5;   // 车尾尾翼在俯视更宽
             if (Math.abs(y - yc) <= half) mask[y * w + x] = 1;
           }
         }
