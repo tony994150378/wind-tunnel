@@ -49,6 +49,8 @@
       this.cd = 0;
       this.cl = 0;
       this.charLength = 1; // 特征长度（投影高度），算力系数用
+      this.les = false;    // Smagorinsky 大涡模拟（LES）开关
+      this.cs = 0.11;      // Smagorinsky 常数（典型 0.1~0.2）
 
       this._initFields();
       this.setRe(this.re);
@@ -87,6 +89,9 @@
       this.u0 = u0;
       this.setRe(this.re);
     }
+
+    /** 开关 Smagorinsky 大涡模拟（LES）：强剪切区自动加湍流粘性，高 Re 尾流更真实 */
+    setTurb(on){ this.les = !!on; }
 
     /** 用 Uint8Array 掩膜设置障碍物（1=固体）。
      *  特征长度默认取沿来流方向(x)的投影长度：圆柱=直径、方块=边长、翼型=弦长。
@@ -214,11 +219,30 @@
         const ux = mx / r, uy = my / r;
         this.ux[idx] = ux; this.uy[idx] = uy;
       }
-      // 碰撞
+      // 碰撞（可选 Smagorinsky 大涡模拟：强剪切区加湍流粘性，高 Re 尾流更丰富/更稳）
+      const cs2 = 1/3, tau0 = this.tau, omega0 = this.omega, les = this.les, Cs2 = this.cs * this.cs;
       for (let idx = 0; idx < N; idx++) {
         if (this.mask[idx]) continue;
         const r = this.rho[idx], ux = this.ux[idx], uy = this.uy[idx];
         const u2 = ux * ux + uy * uy;
+        let omega = omega0;
+        if (les) {
+          // 应变率张量 S_ab = -(1/(2·rho·cs²·tau)) · Pi_ab，Pi_ab = Σ e_ia·e_ib·f_i^neq
+          let Pxx = 0, Pxy = 0, Pyy = 0;
+          for (let i = 0; i < 9; i++) {
+            const cu = CX[i]*ux + CY[i]*uy;
+            const feq = W[i] * r * (1 + 3*cu + 4.5*cu*cu - 1.5*u2);
+            const fn = f[i][idx] - feq;
+            Pxx += CX[i]*CX[i]*fn; Pxy += CX[i]*CY[i]*fn; Pyy += CY[i]*CY[i]*fn;
+          }
+          const k = -1/(2*r*cs2*tau0);
+          const Sxx = k*Pxx, Sxy = k*Pxy, Syy = k*Pyy;
+          const S2 = 2*(Sxx*Sxx + 2*Sxy*Sxy + Syy*Syy);
+          const nut = Cs2 * Math.sqrt(Math.max(0, S2));   // 格子尺寸 Δ=1
+          let tauE = 3*(this.nu + nut) + 0.5;
+          if (tauE < 0.51) tauE = 0.51;                   // 稳定性下限
+          omega = 1/tauE;
+        }
         for (let i = 0; i < 9; i++) {
           const cu = CX[i] * ux + CY[i] * uy;
           const feq = W[i] * r * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * u2);

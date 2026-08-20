@@ -69,6 +69,18 @@
       <input type="file" id="fileInput" accept=".glb,.gltf,.obj" style="display:none;margin-top:8px;" />
     </div>
 
+    <div class="group" style="margin-top:6px;">
+      <label>🔗 免费 3D 模型下载站（下载后上传测试）</label>
+      <div class="links">
+        <a href="https://sketchfab.com/features/free-3d-models" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Sketchfab 免费模型</a>
+        <a href="https://poly.pizza" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Poly Pizza（GLB 直下）</a>
+        <a href="https://www.thingiverse.com" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Thingiverse</a>
+        <a href="https://cults3d.com" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Cults3D</a>
+        <a href="https://www.printables.com" target="_blank" rel="noopener" style="display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;background:#1f2937;color:#9ecbff;border-radius:6px;text-decoration:none;font-size:12px;">Printables</a>
+      </div>
+      <div class="note">挑 <b>GLB / OBJ</b> 格式、实心封闭模型（搜索 car / vehicle 找现成车模）。下载后回到上方「上传 3D 模型」即可测风洞。也可用 AI 生成：Tripo、Meshy、Luma、Rodin。</div>
+    </div>
+
     <div id="modelCtl" class="group" style="display:none;">
       <label>视角</label>
       <select id="viewAngle">
@@ -107,6 +119,14 @@
     <div class="group">
       <label>每帧推演步数 <span class="val" id="spfVal">6</span></label>
       <input type="range" id="spf" min="1" max="20" value="6" />
+    </div>
+    <div class="group">
+      <label>湍流模型</label>
+      <select id="turbSel">
+        <option value="none" selected>无（层流求解）</option>
+        <option value="les">大涡模拟 LES（高 Re 尾流更真实）</option>
+      </select>
+      <div class="note">开启 LES 后，求解器在强剪切区自动加湍流粘性，高雷诺数下尾流更丰富、更接近真实风洞；低 Re 时几乎无差异、不影响精度。</div>
     </div>
 
     <h2>③ 显示</h2>
@@ -183,7 +203,7 @@
   // ---------- 全局状态 ----------
   const S = {
     wt: null, W: 300, H: 120, running: false, raf: 0,
-    src: 'car', re: 100, spf: 6, observe: 'side',
+    src: 'car', re: 100, spf: 6, observe: 'side', turb: 'none',
     base: 'pressure', showVec: true, showPart: true,
     particles: [], cdHist: [], clHist: [], tHist: [], lastT: 0, fps: 0,
     modelGroup: null, yaw: 0, viewAngle: 'front', alpha: 0
@@ -263,6 +283,7 @@
     S.wt = new LBM.WindTunnel(S.W, S.H, { u0: 0.1, re: S.re });
     S.wt.setObstacle(mask, refLen);
     S.wt.setRe(S.re);
+    S.wt.setTurb(S.turb === 'les');
     S.cdHist = []; S.clHist = []; S.tHist = []; S.particles = [];
     resetParticles();
     updateReadouts();
@@ -578,6 +599,7 @@
       if (was){ S.running=true; S.lastT=0; loop(); } // 改几何后保持运行，便于扫攻角
     });
     $('spf').addEventListener('input', e=>{ S.spf=+e.target.value; $('spfVal').textContent=S.spf; });
+    $('turbSel').addEventListener('change', e=>{ S.turb=e.target.value; initSim(); });
     $('gridSel').addEventListener('change', e=>{ const [w,h]=e.target.value.split('x').map(Number); S.W=w; S.H=h; sizeCanvases(); sizeModelView(); fitCamera(); initSim(); });
     $('baseSel').addEventListener('change', e=>{ S.base=e.target.value;
       $('legName').textContent = S.base==='pressure'?'压力':(S.base==='speed'?'速度':'涡量');
