@@ -46,6 +46,14 @@
   a { color: var(--accent); }
   .pill { display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius: 999px; padding:2px 8px; font-size:11px; color:var(--muted); }
   .viewbar { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .mobile-toolbar { display:none; }
+  @media (max-width: 1100px){
+    .layout { display:flex; flex-direction:column; }
+    #centerPanel { order:-1; } /* 窄屏把流场面板置顶，进入页面即可看到效果图 */
+    .mobile-toolbar { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+    .mobile-toolbar button { padding:8px 12px; font-size:13px; }
+    .panel { margin-bottom:10px; }
+  }
 </style>
 </head>
 <body>
@@ -172,8 +180,15 @@
   </div>
 
   <!-- 中：流场 -->
-  <div class="panel">
+  <div class="panel" id="centerPanel">
     <h2>流场可视化</h2>
+    <!-- 移动端快捷工具条：在窄屏显示，确保点开始后立刻看到效果图 -->
+    <div class="mobile-toolbar">
+      <button id="mbStart">▶ 开始</button>
+      <button id="mbPause" class="sec">⏸ 暂停</button>
+      <button id="mbReset" class="sec">↺ 重置</button>
+      <button id="mbF1" class="sec">🏎️ F1</button>
+    </div>
     <div id="simWrap"><canvas id="sim"></canvas></div>
     <div class="viewbar">
       <button id="btnResetView" class="sec" style="padding:5px 10px;font-size:12px;">⟲ 还原视图</button>
@@ -447,6 +462,13 @@
 
     // 1) 先在物理网格逐格算出 RGB，存入 fcol（mask 用表面着色，流体用场值）
     let fcol = S._fcol; if (!fcol || fcol.length !== W*H*3) fcol = S._fcol = new Float32Array(W*H*3);
+    // 右侧出口淡出：让低压蓝色尾流在画面最右 12% 区域自然变淡，
+    // 直至融入淡蓝灰背景。视觉上接近真实 CFD：尾流压力逐渐恢复远场，
+    // 而不是突然出现白墙或保留一块明显蓝色边界。
+    const fadeStart = Math.floor(W * 0.88);
+    const fadeEnd = W;
+    const fadeSpan = Math.max(1, fadeEnd - fadeStart);
+    const bgCol = [205, 222, 244]; // 与 div() 中性点一致的淡蓝灰背景
     for (let y=0;y<H;y++){
       for (let x=0;x<W;x++){
         const i=y*W+x, p=i*3;
@@ -464,6 +486,16 @@
         else if (S.base==='pressure') col = pressureColor(rho[i]-wt.rho0);
         else if (S.base==='speed') col = jet(Math.hypot(ux[i],uy[i])/smax);
         else col = div(curl[i]/vmax);
+
+        // 非固体格在右侧出口区淡出到背景色
+        if (!mask[i] && x > fadeStart) {
+          const t = (x - fadeStart) / fadeSpan; // 0 -> 1
+          const fade = 1 - t * t;               // 二次缓出：尾流先保持，到边缘快速融入背景
+          col = [ col[0]*fade + bgCol[0]*(1-fade),
+                  col[1]*fade + bgCol[1]*(1-fade),
+                  col[2]*fade + bgCol[2]*(1-fade) ];
+        }
+
         fcol[p]=col[0]; fcol[p+1]=col[1]; fcol[p+2]=col[2];
       }
     }
@@ -869,7 +901,11 @@
     $('btnPause').addEventListener('click', ()=>{ S.running=false; cancelAnimationFrame(S.raf); });
     $('btnReset').addEventListener('click', ()=>{ initSim(); });
     $('btnCsv').addEventListener('click', exportCsv);
-    $('btnF1').addEventListener('click', ()=>{
+    // 移动端快捷按钮与左侧按钮功能一致
+    $('mbStart').addEventListener('click', ()=>{ if(!S.wt) initSim(); S.running=true; S.lastT=0; loop(); });
+    $('mbPause').addEventListener('click', ()=>{ S.running=false; cancelAnimationFrame(S.raf); });
+    $('mbReset').addEventListener('click', ()=>{ initSim(); });
+    $('mbF1').addEventListener('click', ()=>{
       if (S.src !== 'car'){
         S.src='car'; $('srcSel').value='car';
         $('modelCtl').style.display='none'; $('fileInput').style.display='none';
