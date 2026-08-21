@@ -171,39 +171,54 @@
         // 来流固定左→右，车头朝左，直观对应真实风洞“从前方吹”。
         const yc = h / 2, Hh = Math.min(w, h) * 0.18;
         const x0 = w * 0.15, L = w * 0.54, x1 = x0 + L;
-        const floor = yc + Hh * 0.5;
+        const off = Hh * 0.42;                 // 整车下沉，让底盘贴近风洞地板
+        const floor = yc + Hh * 0.72 + off;    // 底盘离地间隙很小
         // 主体楔形：低尖鼻(左) → 座舱/进气(中高) → 低车尾(右)
         fillPoly([
           [x0, floor],
-          [x0, yc - Hh * 0.10],
-          [x0 + 0.10 * L, yc - Hh * 0.40],
-          [x0 + 0.28 * L, yc - Hh * 0.82],
-          [x0 + 0.40 * L, yc - Hh * 0.92],
-          [x0 + 0.56 * L, yc - Hh * 0.52],
-          [x0 + 0.82 * L, yc - Hh * 0.22],
-          [x1, yc - Hh * 0.08],
+          [x0, yc - Hh * 0.10 + off],
+          [x0 + 0.10 * L, yc - Hh * 0.40 + off],
+          [x0 + 0.28 * L, yc - Hh * 0.82 + off],
+          [x0 + 0.40 * L, yc - Hh * 0.92 + off],
+          [x0 + 0.56 * L, yc - Hh * 0.52 + off],
+          [x0 + 0.82 * L, yc - Hh * 0.22 + off],
+          [x1, yc - Hh * 0.08 + off],
           [x1, floor],
         ]);
-        // 前翼（车头，向左下突出）
+        // 前翼（车头，向左下突出，贴近地面）
         fillPoly([
           [x0 - 0.05 * L, floor],
           [x0 + 0.09 * L, floor],
-          [x0 + 0.09 * L, floor + Hh * 0.30],
-          [x0 - 0.05 * L, floor + Hh * 0.30],
+          [x0 + 0.09 * L, floor + Hh * 0.12],
+          [x0 - 0.05 * L, floor + Hh * 0.12],
         ]);
-        // 尾翼（车尾，右侧高耸，底部与车体相连）
+        // 尾翼（车尾，右侧高耸）：通过细中央支柱与车体相连，尾翼与车身之间留明显气流通道
+        // 尾翼主翼面（悬于车尾上方，随底盘整体下沉）
         fillPoly([
-          [x1 - 0.05 * L, yc],
-          [x1 + 0.02 * L, yc],
-          [x1 + 0.02 * L, yc - Hh * 1.45],
-          [x1 - 0.05 * L, yc - Hh * 1.45],
+          [x1 - 0.06 * L, yc - Hh * 1.05 + off],
+          [x1 + 0.03 * L, yc - Hh * 1.05 + off],
+          [x1 + 0.03 * L, yc - Hh * 1.22 + off],
+          [x1 - 0.06 * L, yc - Hh * 1.22 + off],
         ]);
-        // 尾翼端板
+        // 中央支柱（细，连接车尾到尾翼，中间留出气流穿过的空间）
         fillPoly([
-          [x1 - 0.07 * L, yc - Hh * 1.55],
-          [x1 + 0.04 * L, yc - Hh * 1.55],
-          [x1 + 0.04 * L, yc - Hh * 1.40],
-          [x1 - 0.07 * L, yc - Hh * 1.40],
+          [x1 - 0.012 * L, yc - Hh * 0.05 + off],
+          [x1 + 0.012 * L, yc - Hh * 0.05 + off],
+          [x1 + 0.012 * L, yc - Hh * 1.05 + off],
+          [x1 - 0.012 * L, yc - Hh * 1.05 + off],
+        ]);
+        // 尾翼端板（两侧竖直板，连接尾翼两端，不封闭中间通道）
+        fillPoly([
+          [x1 - 0.075 * L, yc - Hh * 1.28 + off],
+          [x1 - 0.045 * L, yc - Hh * 1.28 + off],
+          [x1 - 0.045 * L, yc - Hh * 1.15 + off],
+          [x1 - 0.075 * L, yc - Hh * 1.15 + off],
+        ]);
+        fillPoly([
+          [x1 + 0.045 * L, yc - Hh * 1.28 + off],
+          [x1 + 0.075 * L, yc - Hh * 1.28 + off],
+          [x1 + 0.075 * L, yc - Hh * 1.15 + off],
+          [x1 + 0.045 * L, yc - Hh * 1.15 + off],
         ]);
       } else if (kind === 'car_top') {
         // 俯视：来流仍从左→右（车头朝左），截面为车顶平面（前圆后尖的梯形）。
@@ -298,9 +313,16 @@
             const ys = y - CY[i];
             let val;
             if (xs < 0 || xs >= w || ys < 0 || ys >= h) {
-              // 域外：留给 _applyBC，这里先填自由来流平衡态
-              const cu = CX[i] * this.u0;
-              val = W[i] * this.rho0 * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * (this.u0 * this.u0));
+              if (xs >= w) {
+                // 出口右侧（x 超出右界）：零梯度复制出口前一列，保留尾流低压，避免出口突然变白
+                const sx = w - 2;
+                const sy = ys < 0 ? 0 : (ys >= h ? h - 1 : ys);
+                val = ftmp[i][sy * w + sx];
+              } else {
+                // 入口/上下边界：自由来流平衡态（近似远场）
+                const cu = CX[i] * this.u0;
+                val = W[i] * this.rho0 * (1 + 3 * cu + 4.5 * cu * cu - 1.5 * (this.u0 * this.u0));
+              }
             } else {
               const sidx = ys * w + xs;
               if (mask[sidx]) {
@@ -376,21 +398,27 @@
       }
     }
 
-    /** 出口缓冲（sponge zone）：最右 15% 网格把流场平滑松弛回自由来流，
-     *  吸收下游扰动，消除开放边界的数值反射（避免流场右端出现“气流反弹”伪影）。 */
+    /** 出口开放吸收区（open outflow sponge zone）
+     *  只松弛【速度场】回自由来流，用于吸收向下游传播的声波/涡量、消除开放边界的数值反射，
+     *  避免出现“蓝色尾流撞到出口又弹回”的伪影；【密度（压力）不做任何松弛】，
+     *  因此车尾低压尾流（蓝）会一直保留到出口，画面右侧不会突然变成白色误导视觉。 */
     _sponge() {
-      const { w, h, rho0, u0, mask, f } = this;
-      const x0 = Math.floor(w * 0.85);
+      const { w, h, u0, mask, f } = this;
+      // 从车尾之后（x≈0.92w）开始，只覆盖最右 8%，强度温和：仅消除反射、不改动压力分布
+      const x0 = Math.floor(w * 0.92);
       if (x0 >= w - 2) return;
+      const span = Math.max(1, w - 1 - x0);
+      const KMAX = 0.06;
       for (let x = x0; x < w; x++) {
-        const k = 0.06 * (x - x0) / (w - 1 - x0); // 越靠右吸收越强
+        const t = (x - x0) / span;                 // 0（车尾侧）→1（出口列）
+        const k = KMAX * (Math.sin(0.5 * Math.PI * t) ** 2); // sin² 缓动：起点平滑、出口最强
         for (let y = 0; y < h; y++) {
           const idx = y * w + x;
           if (mask[idx]) continue;
           let ux = this.ux[idx], uy = this.uy[idx], r = this.rho[idx];
-          ux += k * (u0 - ux);
-          uy += k * (0 - uy);
-          r  += k * (rho0 - r);
+          ux += k * (u0 - ux);   // 速度松弛回自由来流（吸收反射）
+          uy += k * (0  - uy);
+          // 密度 r 保持不变：尾流低压（蓝）保留到出口，右侧不再出现白色
           this.ux[idx] = ux; this.uy[idx] = uy; this.rho[idx] = r;
           const u2 = ux * ux + uy * uy;
           for (let i = 0; i < 9; i++) {

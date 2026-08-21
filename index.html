@@ -57,7 +57,73 @@
 <div class="layout">
   <!-- 左：控制面板 -->
   <div class="panel">
-    <h2>① 测试物体</h2>
+    <h2>① 显示与控制</h2>
+    <div class="group">
+      <label>底层云图</label>
+      <select id="baseSel">
+        <option value="pressure" selected>压力分布</option>
+        <option value="speed">速度大小</option>
+        <option value="vorticity">涡量（涡旋）</option>
+      </select>
+      <label style="margin-top:10px;" id="obsLbl">观察视角（车头始终迎风）</label>
+      <select id="observe">
+        <option value="side" selected>侧视 · 车身侧面（默认）</option>
+        <option value="top">俯视 · 车顶平面</option>
+        <option value="front">正视 · 车头迎风面</option>
+      </select>
+      <div class="note" id="obsNote">切换观察面时，来流方向 <b>始终从左吹向右（车头迎风）</b>，不会变。你看到的是物体不同截面的绕流形态。</div>
+      <label class="chk"><input type="checkbox" id="tgVec" checked /> 速度矢量</label>
+      <label class="chk"><input type="checkbox" id="tgPart" checked /> 烟雾流线（示踪）</label>
+      <label class="chk"><input type="checkbox" id="tgVortex" checked /> 涡核标记</label>
+      <label class="chk"><input type="checkbox" id="tgSurface" checked /> 显示车身受力边际（仅边缘着色，不盖住背景气流）</label>
+      <div class="btns" style="margin-top:8px;">
+        <button id="btnF1" class="sec">🏎️ F1 风洞预设</button>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button id="btnStart">▶ 开始</button>
+      <button id="btnPause" class="sec">⏸ 暂停</button>
+      <button id="btnReset" class="sec">↺ 重置</button>
+    </div>
+    <div class="btns" style="margin-top:8px;">
+      <button id="btnCsv" class="sec">⬇ 导出 Cd/Cl 数据 (CSV)</button>
+    </div>
+
+    <h2>② 仿真参数</h2>
+    <div class="group">
+      <label>雷诺数 Re <span class="val" id="reVal">100</span></label>
+      <input type="range" id="re" min="10" max="400" value="100" />
+      <div class="note">实际可达 Re 受模型厚度与稳定性限制，见右下读数。</div>
+    </div>
+    <div class="group">
+      <label>攻角 α（来流迎角） <span class="val" id="alphaVal">0°</span></label>
+      <input type="range" id="alpha" min="-30" max="30" value="0" />
+      <div class="note">物体相对来流的迎角。钝体（方块）迎角下升力明显（Cl 可达 1 左右）；流线型薄翼型在当前网格/低 Re 下升力偏弱，属数值限制。</div>
+    </div>
+    <div class="group">
+      <label>网格分辨率</label>
+      <select id="gridSel">
+        <option value="240x96">240 × 96（快）</option>
+        <option value="300x120" selected>300 × 120（均衡）</option>
+        <option value="400x160">400 × 160（精）</option>
+        <option value="600x240">600 × 240（极清·很慢）</option>
+      </select>
+    </div>
+    <div class="group">
+      <label>每帧推演步数 <span class="val" id="spfVal">6</span></label>
+      <input type="range" id="spf" min="1" max="20" value="6" />
+    </div>
+    <div class="group">
+      <label>湍流模型</label>
+      <select id="turbSel">
+        <option value="none" selected>无（层流求解）</option>
+        <option value="les">大涡模拟 LES（高 Re 尾流更真实）</option>
+      </select>
+      <div class="note">开启 LES 后，求解器在强剪切区自动加湍流粘性，高雷诺数下尾流更丰富、更接近真实风洞；低 Re 时几乎无差异、不影响精度。</div>
+    </div>
+
+    <h2>③ 测试物体</h2>
     <div class="group">
       <label>选择模型来源</label>
       <select id="srcSel">
@@ -97,72 +163,9 @@
         <button id="btnExtract">提取轮廓 → 风洞</button>
       </div>
       <canvas id="modelView" height="200" style="margin-top:8px;height:200px;"></canvas>
-      <div class="note">上传车模型后，用 <b>侧面 / 正面 / 俯视</b> 选观察面。无论选哪个，来流都 <b>从车头吹向车尾（左→右固定）</b>——这就是真实汽车风洞视角，吹向不变。来流方向见流场左侧橙色箭头。示例车身也可用上方「观察视角」切换侧视/俯视/正视。</div>
+      <div class="note">上传车模型后，用 <b>侧面 / 正面 / 俯视</b> 选观察面。无论选哪个，来流都 <b>从车头吹向车尾（左→右固定）</b>。示例车身也可用上方「观察视角」切换侧视/俯视/正视。</div>
     </div>
 
-    <h2>② 仿真参数</h2>
-    <div class="group">
-      <label>雷诺数 Re <span class="val" id="reVal">100</span></label>
-      <input type="range" id="re" min="10" max="400" value="100" />
-      <div class="note">实际可达 Re 受模型厚度与稳定性限制，见右下读数。</div>
-    </div>
-    <div class="group">
-      <label>攻角 α（来流迎角） <span class="val" id="alphaVal">0°</span></label>
-      <input type="range" id="alpha" min="-30" max="30" value="0" />
-      <div class="note">物体相对来流的迎角。钝体（方块）迎角下升力明显（Cl 可达 1 左右）；流线型薄翼型在当前网格/低 Re 下升力偏弱（求解器易锁进对称分支），属数值限制，建议用最细网格 + 高 Re。</div>
-    </div>
-    <div class="group">
-      <label>网格分辨率</label>
-      <select id="gridSel">
-        <option value="240x96">240 × 96（快）</option>
-        <option value="300x120" selected>300 × 120（均衡）</option>
-        <option value="400x160">400 × 160（精但慢）</option>
-      </select>
-    </div>
-    <div class="group">
-      <label>每帧推演步数 <span class="val" id="spfVal">6</span></label>
-      <input type="range" id="spf" min="1" max="20" value="6" />
-    </div>
-    <div class="group">
-      <label>湍流模型</label>
-      <select id="turbSel">
-        <option value="none" selected>无（层流求解）</option>
-        <option value="les">大涡模拟 LES（高 Re 尾流更真实）</option>
-      </select>
-      <div class="note">开启 LES 后，求解器在强剪切区自动加湍流粘性，高雷诺数下尾流更丰富、更接近真实风洞；低 Re 时几乎无差异、不影响精度。</div>
-    </div>
-
-    <h2>③ 显示</h2>
-    <div class="group">
-      <label>底层云图</label>
-      <select id="baseSel">
-        <option value="pressure" selected>压力分布</option>
-        <option value="speed">速度大小</option>
-        <option value="vorticity">涡量（涡旋）</option>
-      </select>
-      <label style="margin-top:10px;" id="obsLbl">观察视角（车头始终迎风）</label>
-      <select id="observe">
-        <option value="side" selected>侧视 · 车身侧面（默认）</option>
-        <option value="top">俯视 · 车顶平面</option>
-        <option value="front">正视 · 车头迎风面</option>
-      </select>
-      <div class="note" id="obsNote">切换观察面时，来流方向 <b>始终从左吹向右（车头迎风）</b>，不会变。你看到的是物体不同截面的绕流形态。圆柱等对称体各视角截面相同，切换无差异。</div>
-      <label class="chk"><input type="checkbox" id="tgVec" checked /> 速度矢量</label>
-      <label class="chk"><input type="checkbox" id="tgPart" checked /> 烟雾流线（示踪）</label>
-      <label class="chk"><input type="checkbox" id="tgVortex" checked /> 涡核标记</label>
-      <label class="chk"><input type="checkbox" id="tgSurface" checked /> 表面压力着色</label>
-      <div class="btns" style="margin-top:8px;"><button id="btnF1" class="sec">🏎️ F1 风洞预设</button></div>
-      <div class="note">「F1 风洞预设」一键切到高雷诺数（Re=200）+ 大涡模拟 + 烟雾流线，最接近真实 F1 风洞观感；车身默认即此配置。</div>
-    </div>
-
-    <div class="btns">
-      <button id="btnStart">▶ 开始</button>
-      <button id="btnPause" class="sec">⏸ 暂停</button>
-      <button id="btnReset" class="sec">↺ 重置</button>
-    </div>
-    <div class="btns" style="margin-top:8px;">
-      <button id="btnCsv" class="sec">⬇ 导出 Cd/Cl 数据 (CSV)</button>
-    </div>
     <div class="note" style="margin-top:10px;">
       想了解如何获取模型与部署？见 <a href="guide.html" target="_blank">使用指南 →</a>
     </div>
@@ -185,7 +188,7 @@
       <span id="legHigh">高</span>
       <span id="legName" style="margin-left:8px;">压力</span>
     </div>
-    <div class="note" style="margin-top:6px;">红=迎风高压（车头），蓝=低压尾流（车尾）。开启「表面压力着色」后，车身也会按相邻流体压力/速度显示彩色表面，更像真实风洞 CFD。滚轮或右上方滑块放大，可观察涡流细节。</div>
+    <div class="note" style="margin-top:6px;">蓝=低压/低速，红=高压/高速：车头迎风面呈红（高压）、车尾尾流呈蓝（低压）。车身显示为<b>纯黑清晰剪影</b>，仅边缘按受力着色（红=高压、蓝=低压），不会盖住周围气流。滚轮或右上方滑块放大，可观察涡流细节。</div>
   </div>
 
   <!-- 右：数据 -->
@@ -220,7 +223,7 @@
     wt: null, W: 300, H: 120, baseScale: 1, dpr: 1,
     running: false, raf: 0,
     src: 'car', re: 100, spf: 6, observe: 'side', turb: 'none',
-    base: 'pressure', showVec: true, showPart: true, showVortex: true, showSurface: true,
+    base: 'pressure', showVec: true, showPart: true, showVortex: true, showSurface: false,
     particles: [], cdHist: [], clHist: [], tHist: [], lastT: 0, fps: 0,
     modelGroup: null, yaw: 0, viewAngle: 'front', alpha: 0,
     view: { scale: 1, ox: 0, oy: 0 }, drag: null
@@ -263,8 +266,10 @@
     const wrap = $('simWrap');
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     S.dpr = dpr;
-    // 离屏画布固定为网格尺寸（1:1），render 先画到这里
-    off.width = S.W; off.height = S.H;
+    // 离屏画布按超采样倍数放大，render 先把云图算到高分辨率再平滑缩放到主画布，
+    // 消除块状感，让效果接近真实风洞 CFD 截图。
+    const SS = 2; S.SS = SS;
+    off.width = S.W * SS; off.height = S.H * SS;
     // 主画布按容器宽度，保持宽高比
     const rect = wrap.getBoundingClientRect();
     const cw = Math.max(320, Math.floor(rect.width));
@@ -345,6 +350,30 @@
     }
   }
 
+  // 为 mask 格计算最近流体格：BFS 传播最近流体索引与欧氏距离平方。
+  // 这样车身内部也能按最近流体着色，不会出现大黑块。
+  function computeNearest(mask, W, H){
+    const N=W*H;
+    const idx=new Int32Array(N).fill(-1);
+    const d2=new Float32Array(N).fill(1e9);
+    const q=[];
+    for (let i=0;i<N;i++){ if (!mask[i]){ idx[i]=i; d2[i]=0; q.push(i); } }
+    let qhead=0;
+    while (qhead<q.length){
+      const i=q[qhead++], x=i%W, y=Math.floor(i/W);
+      const sx0=idx[i]%W, sy0=Math.floor(idx[i]/W);
+      const nbr=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]];
+      for (let k=0;k<nbr.length;k++){
+        const xx=nbr[k][0], yy=nbr[k][1];
+        if (xx<0||xx>=W||yy<0||yy>=H) continue;
+        const j=yy*W+xx;
+        const nd2=(xx-sx0)*(xx-sx0)+(yy-sy0)*(yy-sy0);
+        if (nd2<d2[j]-1e-9){ d2[j]=nd2; idx[j]=idx[i]; q.push(j); }
+      }
+    }
+    return {idx,d2};
+  }
+
   // ---------- 颜色映射 ----------
   function jet(t){
     t = Math.max(0, Math.min(1, t));
@@ -354,9 +383,12 @@
     return [r*255|0, g*255|0, b*255|0];
   }
   function div(t){
+    // RdBu 配色，中性点不用纯白而用淡蓝灰：t<0 从淡蓝灰→深蓝，t>0 从淡蓝灰→红。
+    // 这样画面右侧的恢复区不会变成“白墙”，而是柔和的淡蓝，和尾流蓝自然衔接。
     t = Math.max(-1, Math.min(1, t));
-    if (t<0){ const k=-t; return [ (255*(1-k)+60*k)|0, (255*(1-k)+120*k)|0, 255 ]; }
-    const k=t; return [ 255, (255*(1-k)+120*k)|0, (255*(1-k)+60*k)|0 ];
+    const mid = [205, 222, 244];
+    if (t<0){ const k=-t; return [ (mid[0]*(1-k)+60*k)|0, (mid[1]*(1-k)+120*k)|0, (mid[2]*(1-k)+255*k)|0 ]; }
+    const k=t; return [ (mid[0]*(1-k)+255*k)|0, (mid[1]*(1-k)+120*k)|0, (mid[2]*(1-k)+60*k)|0 ];
   }
 
   // ---------- 渲染流场 ----------
@@ -366,68 +398,90 @@
     setViewTransform();
     mctx.imageSmoothingEnabled = true;
     mctx.imageSmoothingQuality = 'high';
-    mctx.drawImage(off, 0, 0, S.W, S.H, 0, 0, S.W, S.H);
+    mctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, S.W, S.H);
   }
 
   function render(){
     const wt = S.wt; if (!wt) return;
     const W=wt.w, H=wt.h, rho=wt.rho, ux=wt.ux, uy=wt.uy, curl=wt.curl, mask=wt.mask;
-    const img = sctx.createImageData(W, H);
-    const data = img.data;
+    const SS = S.SS || 3, ow = off.width, oh = off.height;
 
-    // 极值归一化
-    let pmax=1e-6, smax=1e-6, vmax=1e-6;
+    // 极值归一化（压力分正/负极值，避免车头高压被尾流低压"压缩"导致不够红）
+    let pmaxPos=1e-6, pmaxNeg=1e-6, smax=1e-6, vmax=1e-6;
     for (let i=0;i<W*H;i++){
       if (mask[i]) continue;
       const dev = rho[i]-wt.rho0;
-      if (Math.abs(dev)>pmax) pmax=Math.abs(dev);
+      if (dev>0) pmaxPos=Math.max(pmaxPos,dev); else pmaxNeg=Math.max(pmaxNeg,-dev);
       const sp = Math.hypot(ux[i], uy[i]); if (sp>smax) smax=sp;
       const c = Math.abs(curl[i]); if (c>vmax) vmax=c;
     }
-
-    // 固体表面着色：对每个 mask 格找最近流体格，按距离衰减着色，
-    // 让车身像真实风洞 CFD 那样整体呈现彩色压力/速度分布。
-    const surfaceColor = (x,y)=>{
-      let bestD=1e9, bestVal=0, bestSgn=1;
-      const R=4;
-      for (let dy=-R; dy<=R; dy++){
-        for (let dx=-R; dx<=R; dx++){
-          if (dx===0 && dy===0) continue;
-          const xx=x+dx, yy=y+dy;
-          if (xx<0||xx>=W||yy<0||yy>=H) continue;
-          const j=yy*W+xx;
-          if (mask[j]) continue;
-          const d = dx*dx+dy*dy;
-          if (d < bestD){
-            bestD=d;
-            if (S.base==='pressure') bestVal = rho[j]-wt.rho0;
-            else if (S.base==='speed') bestVal = Math.hypot(ux[j], uy[j]);
-            else { bestVal = Math.abs(curl[j]); bestSgn = curl[j]>=0?1:-1; }
-          }
-        }
-      }
-      if (bestD===1e9) return [18,22,28];
-      const fade = Math.max(0.58, 1 - Math.sqrt(bestD)/(R*0.55));
-      let c;
-      if (S.base==='pressure'){
-        // 把有符号压力映射到 [0,1]，再用 jet 彩虹色：迎风高压→红，背风低压→蓝，过渡→绿/黄
-        const t = Math.max(-1, Math.min(1, bestVal/pmax));
-        c = jet((t + 1) / 2);
-      } else if (S.base==='speed') c = jet(bestVal/smax);
-      else c = div(bestSgn * bestVal/vmax);
-      return [ c[0]*fade|0, c[1]*fade|0, c[2]*fade|0 ];
+    // 蓝=低压，白=中，红=高压（原 RdBu 配色）；
+    // 用正负对称的固定参考值归一化，避免负压被压缩成白色，确保尾流低压呈蓝色。
+    const pmax = Math.max(pmaxPos, pmaxNeg, 1e-6);
+    const pressureColor = v => {
+      const t = v / pmax;
+      const t2 = Math.sign(t) * Math.pow(Math.min(1, Math.abs(t)), 0.55);
+      return div(t2);
     };
 
+    // 可选「表面压力着色」：为每个 mask 格预计算最近流体格，车身按相邻流体压力/速度着色（默认关闭，避免盖住背景气流）
+    if (!S._nearestIdx || S._nearestIdx.length !== W*H || S._lastMask !== mask) {
+      const n = computeNearest(mask, W, H);
+      S._nearestIdx = n.idx; S._nearestDist2 = n.d2; S._lastMask = mask;
+    }
+    const nearestIdx = S._nearestIdx, nearestDist2 = S._nearestDist2;
+
+    // 与流体相邻的边界格着色：红=高压、蓝=低压。
+    // 放宽判定距离到 <=8（约 2.8 格），让边界色带更宽、更容易看清；
+    // 内部格返回 null（保留整车剪影）。
+    const isBoundary = i => S._nearestDist2[i] <= 8.0;
+    const edgeTone = t => Math.sign(t) * Math.pow(Math.abs(t), 0.50);
+    const surfaceColor = (i)=>{
+      if (!isBoundary(i)) return null;
+      const j = nearestIdx[i];
+      if (j<0) return null;
+      if (S.base==='pressure'){ const dev=rho[j]-wt.rho0; return div(edgeTone(dev / pmax)); }
+      if (S.base==='speed') return jet(Math.hypot(ux[j],uy[j])/smax);
+      const c = curl[j]; return div(edgeTone(c / vmax));
+    };
+
+    // 1) 先在物理网格逐格算出 RGB，存入 fcol（mask 用表面着色，流体用场值）
+    let fcol = S._fcol; if (!fcol || fcol.length !== W*H*3) fcol = S._fcol = new Float32Array(W*H*3);
     for (let y=0;y<H;y++){
       for (let x=0;x<W;x++){
-        const i = y*W+x, p = i*4;
+        const i=y*W+x, p=i*3;
         let col;
         if (mask[i]){
-          col = S.showSurface ? surfaceColor(x,y) : [18,22,28];
-        } else if (S.base==='pressure'){ col = div((rho[i]-wt.rho0)/pmax); }
-        else if (S.base==='speed'){ col = jet(Math.hypot(ux[i],uy[i])/smax); }
-        else { col = div(curl[i]/vmax); }
-        data[p]=col[0]; data[p+1]=col[1]; data[p+2]=col[2]; data[p+3]=255;
+          if (S.showSurface){
+            const sc = surfaceColor(i);
+            // 车身内部为纯黑剪影，仅边缘（边界格）按流体压力着色
+            col = sc || [8, 10, 12];
+          } else {
+            // 不开启表面着色时：纯黑整车剪影，不干扰背景气流
+            col = [8, 10, 12];
+          }
+        }
+        else if (S.base==='pressure') col = pressureColor(rho[i]-wt.rho0);
+        else if (S.base==='speed') col = jet(Math.hypot(ux[i],uy[i])/smax);
+        else col = div(curl[i]/vmax);
+        fcol[p]=col[0]; fcol[p+1]=col[1]; fcol[p+2]=col[2];
+      }
+    }
+
+    // 2) 双线性超采样上采样到离屏高分辨率画布，消除块状感（飞机风洞 CFD 级平滑）
+    let img = S._img; if (!img || img.width!==ow || img.height!==oh) img = S._img = sctx.createImageData(ow, oh);
+    const data = img.data;
+    for (let py=0; py<oh; py++){
+      const gy = py/SS, y0 = gy|0, y1 = Math.min(y0+1, H-1), fy = gy - y0;
+      for (let px=0; px<ow; px++){
+        const gx = px/SS, x0 = gx|0, x1 = Math.min(x0+1, W-1), fx = gx - x0;
+        const a=(y0*W+x0)*3, b=(y0*W+x1)*3, c=(y1*W+x0)*3, d=(y1*W+x1)*3;
+        const w00=(1-fx)*(1-fy), w10=fx*(1-fy), w01=(1-fx)*fy, w11=fx*fy;
+        const o=(py*ow+px)*4;
+        data[o]   = fcol[a]*w00 + fcol[b]*w10 + fcol[c]*w01 + fcol[d]*w11;
+        data[o+1] = fcol[a+1]*w00 + fcol[b+1]*w10 + fcol[c+1]*w01 + fcol[d+1]*w11;
+        data[o+2] = fcol[a+2]*w00 + fcol[b+2]*w10 + fcol[c+2]*w01 + fcol[d+2]*w11;
+        data[o+3] = 255;
       }
     }
     sctx.putImageData(img, 0, 0);
@@ -436,7 +490,7 @@
 
     if (S.showVec) drawVectors();
     if (S.showPart) drawStreamlines();
-    if (S.showVortex) drawVortexCores(pmax, smax, vmax);
+    if (S.showVortex) drawVortexCores(pmaxPos, smax, vmax);
     drawInflowArrow();
     drawAnnotations();
   }
@@ -445,9 +499,11 @@
   function drawObstacle(){
     const W=S.W, H=S.H, mask=S.wt.mask;
     setViewTransform();
-    // 开启表面着色时，用更细更淡的轮廓，避免遮挡表面的彩色压力分布
-    mctx.strokeStyle = S.showSurface ? 'rgba(220,240,255,0.45)' : 'rgba(190,220,250,0.92)';
-    mctx.lineWidth = lineWidthPx(S.showSurface ? 0.6 : 1.6);
+    // 用白色轮廓勾勒车身，让黑色剪影像真车图片一样清晰锐利；
+    // 线宽适中，避免把车身边缘的压力色完全盖住。
+    mctx.strokeStyle = 'rgba(245,250,255,0.92)';
+    mctx.lineWidth = lineWidthPx(1.6);
+    mctx.lineJoin = 'round';
     mctx.beginPath();
     for (let y=0;y<H;y++){
       for (let x=0;x<W;x++){
@@ -464,50 +520,58 @@
   function drawVectors(){
     const W=S.W, H=S.H, ux=S.wt.ux, uy=S.wt.uy, mask=S.wt.mask;
     setViewTransform();
-    mctx.strokeStyle = 'rgba(235,245,255,0.55)';
-    mctx.lineWidth = lineWidthPx(0.9);
-    const step = 6;
+    mctx.strokeStyle = 'rgba(240,247,255,0.72)';
+    mctx.lineWidth = lineWidthPx(2.0);
+    const step = 8;
     for (let y=step/2;y<H;y+=step){
       for (let x=step/2;x<W;x+=step){
         const i=((y|0)*W+(x|0));
         if (mask[i]) continue;
         const vx=ux[i], vy=uy[i]; const m=Math.hypot(vx,vy); if (m<1e-4) continue;
-        const L = Math.min(step*0.85, m*step*7);
+        const L = Math.min(step*0.9, m*step*7);
         mctx.beginPath(); mctx.moveTo(x,y); mctx.lineTo(x+vx/m*L, y+vy/m*L); mctx.stroke();
       }
     }
   }
 
-  // 烟雾流线：从入口均匀布种，沿速度场积分，颜色按当地速度渐变
+  // 烟雾流线：从入口均匀布种，沿速度场积分，颜色按当地速度渐变，并标注流向箭头
   function drawStreamlines(){
     const W=S.W, H=S.H, wt=S.wt, mask=wt.mask, ux=wt.ux, uy=wt.uy;
-    const nSeed = 34, ds = 1.2, maxK = 300;
+    const nSeed = 48, ds = 1.2, maxK = 320;
     setViewTransform();
-    mctx.lineWidth = lineWidthPx(1.0);
-    mctx.lineCap = 'round';
+    mctx.lineCap = 'round'; mctx.lineJoin = 'round';
+    mctx.lineWidth = lineWidthPx(2.6);
     // 速度归一化用于着色
     let smax=1e-6; for (let i=0;i<W*H;i++) if(!mask[i]) smax=Math.max(smax, Math.hypot(ux[i],uy[i]));
     for (let s=0; s<nSeed; s++){
       let x=1.5, y=(s+0.5)/nSeed*H;
-      const grad = mctx.createLinearGradient(x*pxPerGrid(), y*pxPerGrid(), (x+W*0.5)*pxPerGrid(), y*pxPerGrid());
-      grad.addColorStop(0, 'rgba(160,220,255,0.18)');
-      grad.addColorStop(1, 'rgba(255,255,255,0.55)');
+      const grad = mctx.createLinearGradient(x*pxPerGrid(), y*pxPerGrid(), (x+W*0.6)*pxPerGrid(), y*pxPerGrid());
+      grad.addColorStop(0, 'rgba(175,228,255,0.32)');
+      grad.addColorStop(1, 'rgba(255,255,255,0.82)');
       mctx.strokeStyle = grad;
       mctx.beginPath(); mctx.moveTo(x, y);
-      let stopped=false;
+      let cnt=0;
       for (let k=0; k<maxK; k++){
         const gx=x|0, gy=y|0;
         if (gx<0||gx>=W||gy<0||gy>=H) break;
-        if (mask[gy*W+gx]){ stopped=true; break; }
+        if (mask[gy*W+gx]) break;
         const vx=ux[gy*W+gx], vy=uy[gy*W+gx];
         const sp=Math.hypot(vx,vy); if (sp<1e-6) break;
         x += vx/sp*ds; y += vy/sp*ds;
         mctx.lineTo(x, y);
         if (x>=W-1) break;
+        // 每 14 个积分步画一个朝向箭头，直观显示气流方向
+        if ((++cnt) % 14 === 0){
+          const ax=vx/sp, ay=vy/sp, ah=2.2, aw=1.5;
+          mctx.lineTo(x - ax*ah - ay*aw, y - ay*ah + ax*aw);
+          mctx.moveTo(x, y);
+          mctx.lineTo(x - ax*ah + ay*aw, y - ay*ah - ax*aw);
+          mctx.moveTo(x, y);
+        }
       }
       mctx.stroke();
     }
-    mctx.lineCap = 'butt';
+    mctx.lineCap = 'butt'; mctx.lineJoin = 'miter';
   }
 
   // 涡核标记：找涡量局部极大值，画小漩涡圈
@@ -793,8 +857,7 @@
     $('gridSel').addEventListener('change', e=>{ const [w,h]=e.target.value.split('x').map(Number); S.W=w; S.H=h; sizeCanvases(); sizeModelView(); fitCamera(); initSim(); });
     $('baseSel').addEventListener('change', e=>{ S.base=e.target.value;
       $('legName').textContent = S.base==='pressure'?'压力':(S.base==='speed'?'速度':'涡量');
-      const g=$('legBar'); g.style.background = S.base==='vorticity'||S.base==='pressure'
-        ? 'linear-gradient(90deg,#003cff,#ffffff,#ff3c3c)' : 'linear-gradient(90deg,#0000ff,#00ffff,#00ff00,#ffff00,#ff0000)';
+      const g=$('legBar'); g.style.background = (S.base==='speed') ? 'linear-gradient(90deg,#0033ff,#00ffff,#33ff33,#ffff00,#ff2200)' : 'linear-gradient(90deg,#3c5dff,#9fb8e6,#cde0f4,#ffb0a0,#ff3c3c)';
       render();
     });
     $('observe').addEventListener('change', e=>{ S.observe=e.target.value; initSim(); });
@@ -884,7 +947,7 @@
     if(!ok){ $('modelCtl').querySelector('.note').textContent='（未加载 Three.js，上传模型功能需联网；示例形状不受影响）'; }
     $('fileInput').style.display='none';
     initSim();
-    const g=$('legBar'); g.style.background='linear-gradient(90deg,#003cff,#ffffff,#ff3c3c)';
+    const g=$('legBar'); g.style.background=(S.base==='speed') ? 'linear-gradient(90deg,#0033ff,#00ffff,#33ff33,#ffff00,#ff2200)' : 'linear-gradient(90deg,#3c5dff,#9fb8e6,#cde0f4,#ffb0a0,#ff3c3c)';
     if (location.search.indexOf('autostart=1')>=0){ S.running=true; S.lastT=0; loop(); }
   }
   window.addEventListener('load', boot);
